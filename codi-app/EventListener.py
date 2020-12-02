@@ -24,7 +24,7 @@ def init():
             device = evdev.InputDevice(path)
             if device.name == 'mtk-kpd':
                 print('Device', device.name, 'found.')
-                dev = InputDevice(device.path)
+                dev = device
                 thread = threading.Thread(target=readEvent)
                 thread.start()
                 return
