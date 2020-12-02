@@ -3,6 +3,8 @@ import argparse
 import sys
 import time
 from datetime import datetime
+from subprocess import Popen, PIPE
+import os
 
 from gi.repository import GLib
 import DBusServer
@@ -27,6 +29,16 @@ signal.signal(signal.SIGTERM, signalHandler)
 signal.signal(signal.SIGABRT, signalHandler)
 signal.signal(signal.SIGHUP, signalHandler)
 
+# Handle dbus on ubuntu-touch
+process = Popen(["/usr/bin/dbus-launch"], stdout=PIPE)
+(output, err) = process.communicate()
+exit_code = process.wait()
+if exit_code == 0:
+    for v in output.split(b'\n'):
+        el = v.split(b'=', 1)
+        if len(el) == 2:
+            print('Setting', el[0].decode('utf-8'), '=', str(el[1]))
+            os.environ[el[0].decode('utf-8')] = el[1].decode('utf-8')
 
 
 CodiStatus.init()
