@@ -38,18 +38,21 @@ def readFromSerial():
     print('Listening...')
     while isRunning:
         header = socket.read_until(msgHeader, size=300)
-        # print('Found header', header)
+        # print('Found header', len(header), header)
 
         # Read Size
-        if len(header) >= 4:
-            msgSize = struct.unpack('>I', socket.read(4))[0]
-            # print('Found message size', msgSize)
-            if msgSize <= 300:
-                msg = socket.read(msgSize-8)
-                st32Cmd.readMessage(msg)
-            else:
-                if isRunning:
-                    print('Message length wrong, ignoring msg')
+        try:
+            if len(header) >= 4:
+                msgSize = struct.unpack('>I', socket.read(4))[0]
+                # print('Found message size', msgSize)
+                if msgSize <= 300:
+                    msg = socket.read(msgSize-8)
+                    st32Cmd.readMessage(msg)
+                else:
+                    if isRunning:
+                        print('Message length wrong, ignoring msg')
+        except:
+            print('Ignoring malformed packet', header)
 
 def sendCommand(cmd):
     global socket
