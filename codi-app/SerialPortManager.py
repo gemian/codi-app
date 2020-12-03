@@ -13,6 +13,7 @@ def init():
     global thread
     try:
         socket = serial.Serial('/dev/ttyS1', baudrate=115200)
+        socket.timeout = 0.1
 
         thread = threading.Thread(target=readFromSerial)
         thread.start()
@@ -24,7 +25,10 @@ def stop():
     global socket
 
     isRunning = False
-    socket.cancel_read()
+    try:
+        socket.cancel_read()
+    except:
+        socket.close()
 
 def readFromSerial():
     global socket
