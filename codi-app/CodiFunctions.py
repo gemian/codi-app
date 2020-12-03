@@ -64,7 +64,7 @@ def GetModemSignalInfo():
 def GetDateTime():
     now = datetime.now()
     mtkCmd.DateTimeInfo(int(now.strftime('%d')),
-    int(now.strftime('%m')),
+    int(now.strftime('%m'))-1,
         int(now.strftime('%Y')),
         int(now.strftime('%H')),
         int(now.strftime('%M')),
