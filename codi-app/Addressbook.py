@@ -12,7 +12,7 @@ def refreshContacts():
     CodiStatus.Contacts = []
 
     try:
-        conn = sqlite3.connect('/home/cosmo/.local/share/evolution/addressbook/system/contacts.db')
+        conn = sqlite3.connect('~/.local/share/evolution/addressbook/system/contacts.db')
         c = conn.cursor()
         statement = 'select * from folder_id'
         contacts = c.execute(statement)
