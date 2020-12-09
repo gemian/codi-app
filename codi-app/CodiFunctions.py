@@ -8,6 +8,7 @@ import Addressbook
 import codi_mtk_generated_functions as mtkCmd
 import LEDManager
 import sqlite3
+import getpass
 
 tapHistory = False
 
@@ -79,7 +80,7 @@ def ActionCall(action, sim, line, numtype, msisdn, contact, contact_id):
             if sim == 2:
                 ril = DBusServer.ril1
             ril.Dial(msisdn, '')
-            conn = sqlite3.connect('~/.local/share/history-service/history.sqlite')
+            conn = sqlite3.connect('/home/'+getpass.getuser()+'/.local/share/history-service/history.sqlite')
             try:
                 c = conn.cursor()
                 statement = 'insert into voice_events values ("ofono/ofono/ril_0", "' + msisdn + \
@@ -167,7 +168,7 @@ def CoDiOFF(par1, par2):
 
 def GetCallHistory(index):
     batchSize = 10
-    conn = sqlite3.connect('~/.local/share/history-service/history.sqlite')
+    conn = sqlite3.connect('/home/'+getpass.getuser()+'/.local/share/history-service/history.sqlite')
     try:
         c = conn.cursor()
         totalCdr = c.execute('select count(*) from voice_events').fetchall()[0][0]

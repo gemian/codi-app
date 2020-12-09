@@ -1,5 +1,6 @@
 import sqlite3
 import CodiStatus
+import getpass
 
 def contactNameForNumber(number):
     for c in CodiStatus.Contacts:
@@ -12,7 +13,7 @@ def refreshContacts():
     CodiStatus.Contacts = []
 
     try:
-        conn = sqlite3.connect('~/.local/share/evolution/addressbook/system/contacts.db')
+        conn = sqlite3.connect('/home/'+getpass.getuser()+'/.local/share/evolution/addressbook/system/contacts.db')
         c = conn.cursor()
         statement = 'select * from folder_id'
         contacts = c.execute(statement)
