@@ -13,6 +13,7 @@ def refreshContacts():
 
     try:
         conn = sqlite3.connect('/home/phablet/.local/share/evolution/addressbook/system/contacts.db')
+        conn.text_factory = bytes
         c = conn.cursor()
         statement = 'select * from folder_id'
         contacts = c.execute(statement)
@@ -21,7 +22,8 @@ def refreshContacts():
             name = ''
             numbers = []
             addContact = True
-            for l in contact[15].split('\n'):
+
+            for l in str(contact[14]).replace('\\r\\n', '\n').split('\n'):
                 if l.startswith('X-DELETED-AT:'):
                     addContact = False
                 if l.startswith('FN:'):
