@@ -56,6 +56,7 @@ def initCodi():
     mtkCmd.MTKDataChangeAlert(1, 0)
     mtkCmd.MTKDataChangeAlert(0, 0)
     cf.SetCallOutput(0)
+    mtkCmd.SetCoDiStatus(1, 0, 1)
 
 SerialPortManager.init()
 
