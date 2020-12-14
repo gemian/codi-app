@@ -8,6 +8,7 @@ import Addressbook
 import codi_mtk_generated_functions as mtkCmd
 import LEDManager
 import sqlite3
+import EventListener as Event
 
 tapHistory = False
 
@@ -219,7 +220,7 @@ def MouseInfo(mode, x_coord, y_coord):
     global tapHistory
 
     if tapHistory and mode == 2:
-            os.system('xdotool click 1')
+            Event.mouseClick()
             tapHistory = False
             return
 
@@ -239,25 +240,21 @@ def MouseInfo(mode, x_coord, y_coord):
     mx = 0
     my = 0
 
-    if abs(x_coord) > 25:
+    if abs(x_coord) > 20:
         mx = 1
-    if abs(y_coord) > 25:
+    if abs(y_coord) > 20:
         my = 1
 
-    if abs(x_coord) < 25 and my == 0:
+    if abs(x_coord) < 20 and my == 0:
         x_coord /= 2
     else:
         x_coord *= 2
-    if abs(y_coord) < 25 and mx == 0:
+    if abs(y_coord) < 20 and mx == 0:
         y_coord /= 2
     else:
         y_coord *= 2
 
-    x = str(-y_coord).replace('-', '\\-')
-    y = str(-x_coord).replace('-', '\\-')
-
-
     if mode == 0:
         os.system('xdotool mousemove -- ' + x + ' ' + y)
     else:
-        os.system('xdotool mousemove_relative -- ' + x + ' ' + y)
+        Event.mouseRelative(int(-y_coord), int(-x_coord))

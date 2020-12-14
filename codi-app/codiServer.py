@@ -20,7 +20,7 @@ import EventListener
 import Addressbook
 
 def signalHandler(_signo, _stack_frame):
-    # mtkCmd.SetMouse(0, 1)
+    mtkCmd.SetMouse(0, 1)
     mtkCmd.SetCoDiStatus(3, 3, 3)
     sys.exit(0)
 
@@ -56,7 +56,6 @@ def initCodi():
     mtkCmd.MTKDataChangeAlert(1, 0)
     mtkCmd.MTKDataChangeAlert(0, 0)
     cf.SetCallOutput(0)
-    mtkCmd.SetCoDiStatus(1, 0, 1)
 
 SerialPortManager.init()
 
