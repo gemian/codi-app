@@ -5,7 +5,7 @@ def contactNameForNumber(number):
     for c in CodiStatus.Contacts:
         if c[2] == number:
             return c[1]
-    return 'Unknown'
+    return number
 
 
 def refreshContacts():
