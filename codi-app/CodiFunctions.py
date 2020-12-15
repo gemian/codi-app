@@ -195,7 +195,7 @@ def GetCallHistory(index):
                 dt = datetime_from_utc_to_local(dt)
                 # print(history[i])
                 # print(i, totalCdr, batchSize, history[i][1], history[i][1], dt.day, dt.month-1, dt.year, dt.hour, dt.minute, dt.second, 0, state)
-                mtkCmd.CallHistoryInfo(i, totalCdr, batchSize, Addressbook.contactNameForNumber(history[i][1]), history[i][1], dt.day, dt.month-1, dt.year, dt.hour, dt.minute, dt.second, 0, state)
+                mtkCmd.CallHistoryInfo(i, totalCdr, batchSize, Addressbook.contactNameForNumber(history[i][1], True), history[i][1], dt.day, dt.month-1, dt.year, dt.hour, dt.minute, dt.second, 0, state)
             except Exception as e:
                 print('Exception:', e)
     except Exception as e:

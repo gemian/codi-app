@@ -1,11 +1,14 @@
 import sqlite3
 import CodiStatus
 
-def contactNameForNumber(number):
+def contactNameForNumber(number, defaultToNumber=False):
     for c in CodiStatus.Contacts:
         if c[2] == number:
             return c[1]
-    return number
+    if defaultToNumber:
+        return number
+    else:
+        return 'Unknown'
 
 
 def refreshContacts():
