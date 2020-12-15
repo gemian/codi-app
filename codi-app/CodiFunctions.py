@@ -20,6 +20,9 @@ def datetime_from_utc_to_local(utc_datetime):
 
 # ST32 calls these functions
 
+#def DateTimeFormat():
+#    mtkCmd.DateTimeFormat("", 1)
+
 def GetBatteryLevel():
     mtkCmd.BatteryLevelInfo(CodiStatus.DeviceInfo.batteryLevel)
 
@@ -71,6 +74,7 @@ def GetDateTime():
         int(now.strftime('%M')),
         int(now.strftime('%S')),
         0)
+    # DateTimeFormat()
 
 def ActionCall(action, sim, line, numtype, msisdn, contact, contact_id):
     try:
@@ -190,8 +194,8 @@ def GetCallHistory(index):
                 dt = datetime.strptime(history[i][4][0:19], '%Y-%m-%dT%H:%M:%S')
                 dt = datetime_from_utc_to_local(dt)
                 # print(history[i])
-                # print(i, totalCdr, batchSize, history[i][1], history[i][1], dt.day, dt.month, dt.year, dt.hour, dt.minute, dt.second, 0, state)
-                mtkCmd.CallHistoryInfo(i, totalCdr, batchSize, Addressbook.contactNameForNumber(history[i][1]), history[i][1], dt.day, dt.month, dt.year, dt.hour, dt.minute, dt.second, 0, state)
+                # print(i, totalCdr, batchSize, history[i][1], history[i][1], dt.day, dt.month-1, dt.year, dt.hour, dt.minute, dt.second, 0, state)
+                mtkCmd.CallHistoryInfo(i, totalCdr, batchSize, Addressbook.contactNameForNumber(history[i][1]), history[i][1], dt.day, dt.month-1, dt.year, dt.hour, dt.minute, dt.second, 0, state)
             except Exception as e:
                 print('Exception:', e)
     except Exception as e:
