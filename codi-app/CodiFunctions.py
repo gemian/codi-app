@@ -146,9 +146,9 @@ def SendDTMF(sim, line, asciinum, palyit):
 def SetCallOutput(status):
     try:
         if status == 0:
-            os.system('pactl set-sink-port 1 "output-earpiece"')
+            os.system('pactl set-sink-port 0 "output-earpiece"')
         elif status == 1:
-            os.system('pactl set-sink-port 1 "output-speaker"')
+            os.system('pactl set-sink-port 0 "output-speaker"')
     except Exception as e:
         print(e)
 
