@@ -148,13 +148,13 @@ def Restart(restartMode):
             LEDManager.ledsOff()
             CodiStatus.DeviceInfo.lidClosed = False
             mtkCmd.SetCoDiStatus(3, 3, 3)
-            os.system('qdbus org.kde.ksmserver /KSMServer org.kde.KSMServerInterface.logout 0 2 -1')
+            os.system('sudo poweroff')
         if restartMode == 1:
             mtkCmd.SetMouse(0, 1)
             CodiStatus.DeviceInfo.lidClosed = False
             LEDManager.ledsOff()
             mtkCmd.SetCoDiStatus(3, 3, 3)
-            os.system('qdbus org.kde.ksmserver /KSMServer org.kde.KSMServerInterface.logout 0 1 -1')
+            os.system('sudo reboot')
     except Exception as e:
         print(e)
 
