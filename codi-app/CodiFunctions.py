@@ -91,9 +91,20 @@ def ActionCall(action, sim, line, numtype, msisdn, contact, contact_id):
                         '", "' + msisdn + datetime.now().strftime(':%a %b %d %H:%M:%S %Y') + \
                         '", "self", "' + \
                         datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z') + \
-                        '", 0, 4, 0, "' + msisdn + '")'
+                        '", 0, 1, 0, "' + msisdn + '")'
                 # print(statement)
                 c.execute(statement)
+                statement = 'insert into threads values ("ofono/ofono/ril_0", "' + msisdn + \
+                        '", 1, "' + msisdn + datetime.now().strftime(':%a %b %d %H:%M:%S %Y') + \
+                        '", "' + datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z') + '", 1 , 0, 1)'
+                # print(statement)
+                c.execute(statement)
+
+                statement = 'insert into thread_participants values ("ofono/ofono/ril_0", "' + msisdn + \
+                        '", 1, "' + msisdn + '", "' + msisdn + '", "", 0, 0)'
+                # print(statement)
+                c.execute(statement)
+
                 conn.commit()
                 c.close()
                 conn.close()
