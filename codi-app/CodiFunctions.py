@@ -20,8 +20,8 @@ def datetime_from_utc_to_local(utc_datetime):
 
 # ST32 calls these functions
 
-#def DateTimeFormat():
-#    mtkCmd.DateTimeFormat("", 1)
+def DateTimeFormat():
+    mtkCmd.DateTimeFormat("", 1)
 
 def GetBatteryLevel():
     mtkCmd.BatteryLevelInfo(CodiStatus.DeviceInfo.batteryLevel)
@@ -74,7 +74,7 @@ def GetDateTime():
         int(now.strftime('%M')),
         int(now.strftime('%S')),
         0)
-    # DateTimeFormat()
+    DateTimeFormat()
 
 def ActionCall(action, sim, line, numtype, msisdn, contact, contact_id):
     try:
