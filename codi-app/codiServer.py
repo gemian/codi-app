@@ -16,6 +16,7 @@ import signal
 import CodiStatus
 import EventListener
 import Addressbook
+import lock_file
 
 def signalHandler(_signo, _stack_frame):
     # mtkCmd.SetMouse(0, 1)
@@ -27,7 +28,9 @@ signal.signal(signal.SIGTERM, signalHandler)
 signal.signal(signal.SIGABRT, signalHandler)
 signal.signal(signal.SIGHUP, signalHandler)
 
-
+lock = "/tmp/.codi.lock"
+lock_file.check_and_kill(lock)
+lock_file.lock(lock)
 
 CodiStatus.init()
 

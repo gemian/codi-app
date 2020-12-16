@@ -127,11 +127,15 @@ SOH = b'\x01'
 STX = b'\x02'
 EOT = b'\x04'
 ACK = b'\x06'
+ACK2 = b'\x86'
 DLE = b'\x10'
 NAK = b'\x15'
 CAN = b'\x18'
-CRC = b'C'
-
+CAN2 = b'\x98'
+CRC = b'C' #0x43
+CRC2 = b'\xc3'
+CRC3 = b'\x83'
+ABT = b'a' #0x61 - flash fail - abort
 
 class XMODEM(object):
     '''
@@ -143,25 +147,11 @@ class XMODEM(object):
     >>> import serial
     >>> from xmodem import XMODEM
     >>> ser = serial.Serial('/dev/ttyUSB0', timeout=0) # or whatever you need
-    >>> def getc(size, timeout=1):
-    ...     return ser.read(size) or None
-    ...
-    >>> def putc(data, timeout=1):
-    ...     return ser.write(data) or None
-    ...
-    >>> modem = XMODEM(getc, putc)
+    >>> modem = XMODEM(ser)
 
 
-    :param getc: Function to retrieve bytes from a stream. The function takes
-        the number of bytes to read from the stream and a timeout in seconds as
-        parameters. It must return the bytes which were read, or ``None`` if a
-        timeout occured.
-    :type getc: callable
-    :param putc: Function to transmit bytes to a stream. The function takes the
-        bytes to be written and a timeout in seconds as parameters. It must
-        return the number of bytes written to the stream, or ``None`` in case of
-        a timeout.
-    :type putc: callable
+    :param ser: serial port to read from or write to.
+    :type getc: class
     :param mode: XMODEM protocol mode
     :type mode: string
     :param pad: Padding character to make the packets match the packet size
@@ -205,9 +195,8 @@ class XMODEM(object):
         0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
     ]
 
-    def __init__(self, getc, putc, mode='xmodem', pad=b'\x1a'):
-        self.getc = getc
-        self.putc = putc
+    def __init__(self, ser, mode='xmodem', pad=b'\x1a'):
+        self.ser = ser
         self.mode = mode
         self.pad = pad
         self.log = logging.getLogger('xmodem.XMODEM')
@@ -222,9 +211,9 @@ class XMODEM(object):
         :type timeout: int
         '''
         for _ in range(count):
-            self.putc(CAN, timeout)
+            self.ser.write(CAN)
 
-    def send(self, stream, retry=16, timeout=60, quiet=False, callback=None):
+    def send(self, stream, retry=20, timeout=60, quiet=False, callback=None):
         '''
         Send a stream via the XMODEM protocol.
 
@@ -270,7 +259,7 @@ class XMODEM(object):
         crc_mode = 0
         cancel = 0
         while True:
-            char = self.getc(1)
+            char = self.ser.read(1)
             if char:
                 if char == NAK:
                     self.log.debug('standard checksum requested (NAK).')
@@ -280,7 +269,7 @@ class XMODEM(object):
                     self.log.debug('16-bit CRC requested (CRC).')
                     crc_mode = 1
                     break
-                elif char == CAN:
+                elif char == CAN or char == CAN2:
                     if not quiet:
                         print('received CAN', file=sys.stderr)
                     if cancel:
@@ -305,6 +294,7 @@ class XMODEM(object):
         error_count = 0
         success_count = 0
         total_packets = 0
+        header_sent = False
         if self.mode == 'ymodem':
             sequence = 0
             filenames = stream
@@ -312,7 +302,7 @@ class XMODEM(object):
             sequence = 1
         while True:
             # build packet
-            if self.mode == 'ymodem' and success_count == 0:
+            if not header_sent:
                 # send packet sequence 0 containing:
                 #  Filename Length [Modification-Date [Mode [Serial-Number]]]
                 # 'stream' is actually the filename
@@ -337,10 +327,8 @@ class XMODEM(object):
                 header = self._make_send_header(header_size, sequence)
                 data = data.ljust(header_size, NUL)
                 checksum = self._make_send_checksum(crc_mode, data)
+                header_sent = True
             else:
-                # happens after sending ymodem empty filename
-                if not stream:
-                    return True
                 # normal data packet
                 data = stream.read(packet_size)
                 if not data:
@@ -354,27 +342,38 @@ class XMODEM(object):
                 checksum = self._make_send_checksum(crc_mode, data)
 
             # emit packet & get ACK
+            self.ser.write(header + data + checksum)
+
             while True:
-                self.log.debug('send: block %d', sequence)
-                self.putc(header + data + checksum)
-                char = self.getc(1, timeout)
-                if char == ACK:
+                char = self.ser.read(1)
+                if char == CRC or char == CRC2 or char == CRC3:
+                    if self.ser.in_waiting == 0:
+                        self.log.debug('re-send: block %d, pks: %d', sequence, packet_size)
+                        self.ser.write(header + data + checksum)
+                    else:
+                        rubbish = self.ser.read(self.ser.in_waiting-1)
+                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                    continue
+                if char == ACK or char == ACK2 or char == NAK:
                     success_count += 1
                     if callable(callback):
                         callback(total_packets, success_count, error_count)
                     error_count = 0
-                    if self.mode == 'ymodem' and success_count == 1 and len(filename):
-                        char = self.getc(1, timeout)
-                        if char == DLE: # dunno why
-                            char = self.getc(1, timeout)
-                        if char == CRC:
-                            break
-                        self.log.error('send error: ymodem expected CRC; got %r for block %d',
-                                       char, sequence)
-                    else:
-                        break
+                    if char == NAK:
+                        rubbish = self.ser.read(1024)
+                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        rubbish = self.ser.read(1024)
+                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        rubbish = self.ser.read(1024)
+                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        rubbish = self.ser.read(1024)
+                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                    break
+                if char == ABT:
+                    self.log.debug('got abort')
+                    return False
 
-                self.log.error('send error: expected ACK; got %r for block %d',
+                self.log.error('send error: expected CRC|ACK; got %r for block %d',
                                char, sequence)
                 error_count += 1
                 if callable(callback):
@@ -382,7 +381,7 @@ class XMODEM(object):
                 if error_count > retry:
                     # excessive amounts of retransmissions requested,
                     # abort transfer
-                    self.log.error('send error: NAK received %d times, '
+                    self.log.error('send error: Unexpected received %d times, '
                                    'aborting.', error_count)
                     self.abort(timeout=timeout)
                     return False
@@ -394,26 +393,26 @@ class XMODEM(object):
         while True:
             self.log.debug('sending EOT, awaiting ACK')
             # end of transmission
-            self.putc(EOT)
+            self.ser.write(EOT)
+            self.ser.write(EOT)
+            self.ser.write(EOT)
 
             # An ACK should be returned
-            char = self.getc(1, timeout)
+            char = self.ser.read(1)
             if char == ACK:
                 break
             else:
                 self.log.error('send error: expected ACK; got %r', char)
                 error_count += 1
                 if error_count > retry:
-                    self.log.warn('EOT was not ACKd, aborting transfer')
+                    self.log.warning('EOT was not ACKd, aborting transfer')
                     self.abort(timeout=timeout)
                     return False
 
         self.log.info('Transmission successful (ACK received).')
         if self.mode == 'ymodem':
-            # YMODEM - recursively send next file
-            # or empty filename header to end the xfer batch.
+            # YMODEM - close the stream
             stream.close()
-            return self.send(filenames, retry, timeout, quiet, callback)
         return True
 
     def _make_send_header(self, packet_size, sequence):
@@ -476,22 +475,22 @@ class XMODEM(object):
                 self.abort(timeout=timeout)
                 return None
             elif crc_mode and error_count < (retry // 2):
-                if not self.putc(CRC):
+                if not self.ser.write(CRC):
                     self.log.debug('recv error: putc failed, '
                                    'sleeping for %d', delay)
                     time.sleep(delay)
                     error_count += 1
             else:
                 crc_mode = 0
-                if not self.putc(NAK):
+                if not self.ser.write(NAK):
                     self.log.debug('recv error: putc failed, '
                                    'sleeping for %d', delay)
                     time.sleep(delay)
                     error_count += 1
 
-            char = self.getc(1, timeout)
+            char = self.ser.read(1)
             if char is None:
-                self.log.warn('recv error: getc timeout in start sequence')
+                self.log.warn('recv error: read timeout in start sequence')
                 error_count += 1
                 continue
             elif char == SOH:
@@ -500,7 +499,7 @@ class XMODEM(object):
             elif char == STX:
                 self.log.debug('recv: STX')
                 break
-            elif char == CAN:
+            elif char == CAN or char == CAN2:
                 if cancel:
                     self.log.info('Transmission canceled: received 2xCAN '
                                   'at start-sequence')
@@ -532,11 +531,11 @@ class XMODEM(object):
                 elif char == EOT:
                     # We received an EOT, so send an ACK and return the
                     # received data length.
-                    self.putc(ACK)
+                    self.ser.write(ACK)
                     self.log.info("Transmission complete, %d bytes",
                                   income_size)
                     return income_size
-                elif char == CAN:
+                elif char == CAN or char == CAN2:
                     # cancel at two consecutive cancels
                     if cancel:
                         self.log.info('Transmission canceled: received 2xCAN '
@@ -562,15 +561,15 @@ class XMODEM(object):
             error_count = 0
             cancel = 0
             self.log.debug('recv: data block %d', sequence)
-            seq1 = self.getc(1, timeout)
+            seq1 = self.ser.read(1)
             if seq1 is None:
-                self.log.warn('getc failed to get first sequence byte')
+                self.log.warn('read failed to get first sequence byte')
                 seq2 = None
             else:
                 seq1 = ord(seq1)
-                seq2 = self.getc(1, timeout)
+                seq2 = self.ser.read(1)
                 if seq2 is None:
-                    self.log.warn('getc failed to get second sequence byte')
+                    self.log.warn('read failed to get second sequence byte')
                 else:
                     # second byte is the same as first as 1's complement
                     seq2 = 0xff - ord(seq2)
@@ -582,21 +581,21 @@ class XMODEM(object):
                                'got (seq1=%r, seq2=%r), '
                                'receiving next block, will NAK.',
                                sequence, seq1, seq2)
-                self.getc(packet_size + 1 + crc_mode)
+                self.ser.read(packet_size + 1 + crc_mode)
             else:
                 # sequence is ok, read packet
                 # packet_size + checksum
-                data = self.getc(packet_size + 1 + crc_mode, timeout)
+                data = self.ser.read(packet_size + 1 + crc_mode)
                 valid, data = self._verify_recv_checksum(crc_mode, data)
 
                 # valid data, append chunk
                 if valid:
                     income_size += len(data)
                     stream.write(data)
-                    self.putc(ACK)
+                    self.ser.write(ACK)
                     sequence = (sequence + 1) % 0x100
                     # get next start-of-header byte
-                    char = self.getc(1, timeout)
+                    char = self.ser.read(1)
                     continue
 
             # something went wrong, request retransmission
@@ -610,12 +609,12 @@ class XMODEM(object):
                 # call the character receive subroutine, specifying a 1-second
                 # timeout, and looping back to PURGE until a timeout occurs.
                 # The <nak> is then sent, ensuring the other end will see it.
-                data = self.getc(1, timeout=1)
+                data = self.ser.read(1)
                 if data is None:
                     break
-            self.putc(NAK)
+            self.ser.write(NAK)
             # get next start-of-header byte
-            char = self.getc(1, timeout)
+            char = self.ser.read(1)
             continue
 
     def _verify_recv_checksum(self, crc_mode, data):
@@ -679,88 +678,3 @@ class XMODEM(object):
 XMODEM1k = partial(XMODEM, mode='xmodem1k')
 YMODEM = partial(XMODEM, mode='ymodem')
 
-
-def run():
-    import optparse
-    import subprocess
-
-    parser = optparse.OptionParser(
-        usage='%prog [<options>] <send|recv> filename filename')
-    parser.add_option('-m', '--mode', default='xmodem',
-                      help='XMODEM mode (xmodem, xmodem1k, ymodem)')
-
-    options, args = parser.parse_args()
-    if options.mode != 'ymodem' and len(args) != 3:
-        parser.error('invalid arguments')
-        return 1
-    elif len(args) < 2:
-        parser.error('invalid arguments')
-        return 1
-    elif args[0] not in ('send', 'recv'):
-        parser.error('invalid mode')
-        return 1
-
-    def _func(so, si):
-        import select
-
-        print(('si', si))
-        print(('so', so))
-
-        def getc(size, timeout=3):
-            read_ready, _, _ = select.select([so], [], [], timeout)
-            if read_ready:
-                data = so.read(size)
-            else:
-                data = None
-
-            print(('getc(', repr(data), ')'))
-            return data
-
-        def putc(data, timeout=3):
-            _, write_ready, _ = select.select([], [si], [], timeout)
-            if write_ready:
-                si.write(data)
-                si.flush()
-                size = len(data)
-            else:
-                size = None
-
-            print(('putc(', repr(data), repr(size), ')'))
-            return size
-
-        return getc, putc
-
-    def _pipe(*command):
-        pipe = subprocess.Popen(command,
-                                stdout=subprocess.PIPE,
-                                stdin=subprocess.PIPE)
-        return pipe.stdout, pipe.stdin
-
-    if args[0] == 'recv':
-        getc, putc = _func(*_pipe('sz', '--xmodem', args[2]))
-        stream = open(args[1], 'wb')
-        xmodem = XMODEM(getc, putc, mode=options.mode)
-        status = xmodem.recv(stream, retry=8)
-        assert status, ('Transfer failed, status is', False)
-        stream.close()
-
-    elif args[0] == 'send':
-        rzargs = ['rz']
-        if options.mode == 'ymodem':
-            rzargs += ['--ymodem']
-        else:
-            rzargs += ['--xmodem']
-            rzargs += args[2]
-        getc, putc = _func(*_pipe(*rzargs))
-        if options.mode != 'ymodem':
-            stream = open(args[1], 'rb')
-        else:
-            stream = args[1:]
-        xmodem = XMODEM(getc, putc, mode=options.mode)
-        sent = xmodem.send(stream, retry=8)
-        assert sent is not None, ('Transfer failed, sent is', sent)
-        if options.mode != 'ymodem':
-            stream.close()
-
-if __name__ == '__main__':
-    sys.exit(run())

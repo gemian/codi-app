@@ -1,6 +1,27 @@
 import struct
 import CodiFunctions as cf
 
+codi_version = None
+resources_version = None
+majorVer = None
+minVer = None
+
+def get_codi_version():
+    global codi_version
+    return codi_version
+
+def get_resources_version():
+    global resources_version
+    return resources_version
+
+def get_protocol_major():
+    global majorVer
+    return majorVer
+
+def get_protocol_minor():
+    global minVer
+    return minVer
+
 def readUint8(p):
     return struct.unpack(">B", p[:1])[0], p[1:]
 
@@ -168,6 +189,11 @@ CMD_SYNC_RIGHT_USB_OTG_STATUS = 144
 CMD_ST_ENTRY_DEEP_SLEEP_STATUS = 145
 
 def readMessage(msg):
+    global codi_version
+    global resources_version
+    global protocol_major
+    global protocol_minor
+
     cmdId, msg = readUint32(msg)
     # print("Got cmdId", cmdId)
     sessionId, msg = readUint32(msg)
@@ -179,6 +205,10 @@ def readMessage(msg):
         try:
             version, msg = readString(msg)
             print("version =", version)
+            parts = version.split(b':')
+            if parts[0] == b'CODI' and len(parts[3]) > 0:
+                codi_version = parts[1].decode("utf-8")
+                resources_version = parts[2].decode("utf-8")
             cf.CoDiFlashVersionInfo(version)
         except Exception as e:
             print(e)
