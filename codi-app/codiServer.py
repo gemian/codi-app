@@ -14,10 +14,21 @@ import SerialPortManager
 import codi_mtk_generated_functions as mtkCmd
 from codi_generated_parser import *
 import signal
+import sys
 
 import CodiStatus
 import EventListener
 import Addressbook
+
+class writer(object):
+    def __init__(self, file):
+        self.log = open(file, 'w+')
+    def write(self, data):
+        self.log.write(data)
+        self.log.flush()
+
+sys.stdout = writer('/tmp/codi.out')
+sys.stderr = writer('/tmp/codi.err')
 
 def signalHandler(_signo, _stack_frame):
     mtkCmd.SetMouse(0, 1)
