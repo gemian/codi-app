@@ -901,7 +901,7 @@ def readMessage(msg):
         except Exception as e:
             print(e)
 
-    if cmdId == 143:
+    if cmdId == CMD_SYNC_SYS_SLEEP_STATUS:
         handled = True
         print("<- CoDiOFF")
         try:
