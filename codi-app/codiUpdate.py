@@ -105,9 +105,16 @@ def stm32_into_download_mode(prepare="0"):
 
 ser = None
 
+def print_progress_bar (iteration, error_count, total):
+    errors = "E:" + str(error_count)
+    length = int(os.popen('stty size', 'r').read().split()[1]) - len(errors) - 11
+    percent = ("{0:.1f}").format(100 * (iteration / float(total)))
+    filled_length = int(length * iteration // total)
+    bar = '█' * filled_length + '-' * (length - filled_length)
+    print(f'\r |{bar}| {percent}% {errors}', end = "\r")
 
-def callback(total_packets, success_count, error_count):
-    print(total_packets, success_count, error_count)
+def callback(total_packets, success_count, error_count, total):
+    print_progress_bar(total_packets, error_count, total)
 
 
 def send_file(file):
@@ -135,7 +142,7 @@ def send_file(file):
 
     print("Sending", file)
     try:
-        print("Send completed:", modem.send(file, callback=callback))
+        print("\r\nSend completed:", modem.send(file, callback=callback))
     except Exception as e:
         print("Exception", e)
     SerialPortManager.switchToCmdMode()

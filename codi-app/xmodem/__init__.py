@@ -184,7 +184,7 @@ class YMODEM(object):
                          getting status updates while a ymodem
                          transfer is underway.
                          Expected callback signature:
-                         def callback(total_packets, success_count, error_count)
+                         def callback(total_packets, success_count, error_count, total)
         :type callback: callable
         '''
 
@@ -231,6 +231,7 @@ class YMODEM(object):
         error_count = 0
         success_count = 0
         total_packets = 0
+        total = 0
         header_sent = False
         sequence = 0
         stream = None
@@ -253,6 +254,7 @@ class YMODEM(object):
                 data = data.ljust(header_size, NUL)
                 checksum = self._make_send_checksum(crc_mode, data)
                 header_sent = True
+                total = (stat.st_size / packet_size) + 1
             else:
                 # normal data packet
                 data = stream.read(packet_size)
@@ -282,7 +284,7 @@ class YMODEM(object):
                 if char == ACK or char == ACK2 or char == NAK:
                     success_count += 1
                     if callable(callback):
-                        callback(total_packets, success_count, error_count)
+                        callback(total_packets, success_count, error_count, total)
                     error_count = 0
                     if char == NAK:
                         rubbish = self.ser.read(1024)
@@ -302,7 +304,7 @@ class YMODEM(object):
                                char, sequence)
                 error_count += 1
                 if callable(callback):
-                    callback(total_packets, success_count, error_count)
+                    callback(total_packets, success_count, error_count, total)
                 if error_count > retry:
                     # excessive amounts of retransmissions requested,
                     # abort transfer
