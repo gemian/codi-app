@@ -135,7 +135,7 @@ def send_file(file):
 
     print("Sending", file)
     try:
-        print("Send completed:", modem.send([file], callback=callback))
+        print("Send completed:", modem.send(file, callback=callback))
     except Exception as e:
         print("Exception", e)
     SerialPortManager.switchToCmdMode()

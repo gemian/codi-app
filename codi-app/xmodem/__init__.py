@@ -1,87 +1,19 @@
 '''
-===============================
- XMODEM file transfer protocol
-===============================
+=======================================
+ Modified YMODEM file transfer protocol
+=======================================
 
 .. $Id$
 
-This is a literal implementation of XMODEM.TXT_, XMODEM1K.TXT_ and
-XMODMCRC.TXT_, support for YMODEM and ZMODEM is pending. YMODEM should
-be fairly easy to implement as it is a hack on top of the XMODEM
-protocol using sequence bytes ``0x00`` for sending file names (and some
-meta data).
+This is a implementation of YMODEM as used on the Cosmo Communicator.
 
-.. _XMODEM.TXT: doc/XMODEM.TXT
-.. _XMODEM1K.TXT: doc/XMODEM1K.TXT
-.. _XMODMCRC.TXT: doc/XMODMCRC.TXT
-
-Data flow example including error recovery
-==========================================
+Data flow example
+=================
 
 Here is a sample of the data flow, sending a 3-block message.
-It includes the two most common line hits - a garbaged block,
-and an ``ACK`` reply getting garbaged. ``CRC`` or ``CSUM`` represents
-the checksum bytes.
 
-XMODEM 128 byte blocks
-----------------------
-
-::
-
-    SENDER                                      RECEIVER
-
-                                            <-- NAK
-    SOH 01 FE Data[128] CSUM                -->
-                                            <-- ACK
-    SOH 02 FD Data[128] CSUM                -->
-                                            <-- ACK
-    SOH 03 FC Data[128] CSUM                -->
-                                            <-- ACK
-    SOH 04 FB Data[128] CSUM                -->
-                                            <-- ACK
-    SOH 05 FA Data[100] CPMEOF[28] CSUM     -->
-                                            <-- ACK
-    EOT                                     -->
-                                            <-- ACK
-
-XMODEM-1k blocks, CRC mode
---------------------------
-
-::
-
-    SENDER                                      RECEIVER
-
-                                            <-- C
-    STX 01 FE Data[1024] CRC CRC            -->
-                                            <-- ACK
-    STX 02 FD Data[1024] CRC CRC            -->
-                                            <-- ACK
-    STX 03 FC Data[1000] CPMEOF[24] CRC CRC -->
-                                            <-- ACK
-    EOT                                     -->
-                                            <-- ACK
-
-Mixed 1024 and 128 byte Blocks
-------------------------------
-
-::
-
-    SENDER                                      RECEIVER
-
-                                            <-- C
-    STX 01 FE Data[1024] CRC CRC            -->
-                                            <-- ACK
-    STX 02 FD Data[1024] CRC CRC            -->
-                                            <-- ACK
-    SOH 03 FC Data[128] CRC CRC             -->
-                                            <-- ACK
-    SOH 04 FB Data[100] CPMEOF[28] CRC CRC  -->
-                                            <-- ACK
-    EOT                                     -->
-                                            <-- ACK
-
-YMODEM Batch Transmission Session (1 file)
-------------------------------------------
+Batch Transmission Session (1 file - not tested with more than one)
+-------------------------------------------------------------------
 
 ::
 
@@ -89,21 +21,37 @@ YMODEM Batch Transmission Session (1 file)
                                             <-- C (command:rb)
     SOH 00 FF foo.c NUL[123] CRC CRC        -->
                                             <-- ACK
+    SOH 01 FE Data[1024] CRC CRC            --> (probably received garbled)
                                             <-- C
-    SOH 01 FE Data[128] CRC CRC             -->
+    SOH 01 FE Data[1024] CRC CRC (resend)   --> (starts flash erase)
+                                            <-- (empty read timed out)
+                                            <-- (empty read timed out)
+                                            <-- (empty read timed out)
+                                            <-- C
+    SOH 01 FE Data[1024] CRC CRC (resend)   -->
                                             <-- ACK
-    SOH 02 FC Data[128] CRC CRC             -->
+    SOH 02 FC Data[1024] CRC CRC            --> (probably received garbled)
+                                            <-- C
+    SOH 02 FC Data[1024] CRC CRC (resend)   -->
                                             <-- ACK
-    SOH 03 FB Data[100] CPMEOF[28] CRC CRC  -->
+    SOH 03 FB Data[1000] CPMEOF[24] CRC CRC  -->
                                             <-- ACK
     EOT                                     -->
-                                            <-- NAK
+    EOT                                     -->
+    EOT                                     -->
+                                            <-- C
+    EOT                                     -->
+    EOT                                     -->
+    EOT                                     -->
+                                            <-- C
+    EOT                                     -->
+    EOT                                     -->
+    EOT                                     -->
+                                            <-- C
+    EOT                                     -->
+    EOT                                     -->
     EOT                                     -->
                                             <-- ACK
-                                            <-- C
-    SOH 00 FF NUL[128] CRC CRC              -->
-                                            <-- ACK
-
 
 '''
 from __future__ import division, print_function
@@ -119,7 +67,7 @@ import platform
 import logging
 import time
 import sys
-from functools import partial
+import os
 
 # Protocol bytes
 NUL = b'\x00'
@@ -137,22 +85,21 @@ CRC2 = b'\xc3'
 CRC3 = b'\x83'
 ABT = b'a' #0x61 - flash fail - abort
 
-class XMODEM(object):
+class YMODEM(object):
     '''
-    XMODEM Protocol handler, expects two callables which encapsulate the read
+    YMODEM Protocol handler, expects two callables which encapsulate the read
         and write operations on the underlying stream.
 
     Example functions for reading and writing to a serial line:
 
     >>> import serial
-    >>> from xmodem import XMODEM
+    >>> from xmodem import YMODEM
     >>> ser = serial.Serial('/dev/ttyUSB0', timeout=0) # or whatever you need
-    >>> modem = XMODEM(ser)
+    >>> modem = YMODEM(ser)
 
 
     :param ser: serial port to read from or write to.
     :type getc: class
-    :param mode: XMODEM protocol mode
     :type mode: string
     :param pad: Padding character to make the packets match the packet size
     :type pad: char
@@ -195,11 +142,10 @@ class XMODEM(object):
         0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
     ]
 
-    def __init__(self, ser, mode='xmodem', pad=b'\x1a'):
+    def __init__(self, ser, pad=b'\x1a'):
         self.ser = ser
-        self.mode = mode
         self.pad = pad
-        self.log = logging.getLogger('xmodem.XMODEM')
+        self.log = logging.getLogger('codiUpdate')
 
     def abort(self, count=2, timeout=60):
         '''
@@ -213,12 +159,11 @@ class XMODEM(object):
         for _ in range(count):
             self.ser.write(CAN)
 
-    def send(self, stream, retry=20, timeout=60, quiet=False, callback=None):
+    def send(self, filename, retry=20, timeout=60, quiet=False, callback=None):
         '''
-        Send a stream via the XMODEM protocol.
+        Send a stream via the YMODEM protocol.
 
-            >>> stream = open('/etc/issue', 'rb')
-            >>> print(modem.send(stream))
+            >>> print(modem.send('filename'))
             True
 
         Returns ``True`` upon successful transmission or ``False`` in case of
@@ -236,7 +181,7 @@ class XMODEM(object):
         :type quiet: bool
         :param callback: Reference to a callback function that has the
                          following signature.  This is useful for
-                         getting status updates while a xmodem
+                         getting status updates while a ymodem
                          transfer is underway.
                          Expected callback signature:
                          def callback(total_packets, success_count, error_count)
@@ -244,15 +189,7 @@ class XMODEM(object):
         '''
 
         # initialize protocol
-        try:
-            packet_size = dict(
-                xmodem    = 128,
-                xmodem1k  = 1024,
-                ymodem    = 1024,
-            )[self.mode]
-        except KeyError:
-            raise ValueError("Invalid mode specified: {self.mode!r}"
-                             .format(self=self))
+        packet_size = 1024
 
         self.log.debug('Begin start sequence, packet_size=%d', packet_size)
         error_count = 0
@@ -295,30 +232,18 @@ class XMODEM(object):
         success_count = 0
         total_packets = 0
         header_sent = False
-        if self.mode == 'ymodem':
-            sequence = 0
-            filenames = stream
-        else:
-            sequence = 1
+        sequence = 0
+        stream = None
         while True:
             # build packet
             if not header_sent:
                 # send packet sequence 0 containing:
                 #  Filename Length [Modification-Date [Mode [Serial-Number]]]
-                # 'stream' is actually the filename
-                import os
-                if len(filenames):
-                    filename = filenames.pop()
-                    stream = open(filename, 'rb')
-                    stat = os.stat(filename)
-                    data = os.path.basename(filename).encode() + NUL + str(stat.st_size).encode()
-                    self.log.debug('ymodem sending : "%s" len:%d', filename, stat.st_size)
-                else:
-                    # empty file name packet terminates transmission
-                    filename = ''
-                    data = ''.encode()
-                    stream = None
-                    self.log.debug('ymodem done, sending empty header.')
+                stream = open(filename, 'rb')
+                stat = os.stat(filename)
+                data = os.path.basename(filename).encode() + NUL + str(stat.st_size).encode()
+                self.log.debug('ymodem sending : "%s" len:%d', filename, stat.st_size)
+
                 if len(data) <= 128:
                     header_size = 128
                 else:
@@ -410,9 +335,7 @@ class XMODEM(object):
                     return False
 
         self.log.info('Transmission successful (ACK received).')
-        if self.mode == 'ymodem':
-            # YMODEM - close the stream
-            stream.close()
+        stream.close()
         return True
 
     def _make_send_header(self, packet_size, sequence):
@@ -426,237 +349,12 @@ class XMODEM(object):
         return bytearray(_bytes)
 
     def _make_send_checksum(self, crc_mode, data):
+        assert crc_mode is 1
         _bytes = []
         if crc_mode:
             crc = self.calc_crc(data)
             _bytes.extend([crc >> 8, crc & 0xff])
-        else:
-            crc = self.calc_checksum(data)
-            _bytes.append(crc)
         return bytearray(_bytes)
-
-    def recv(self, stream, crc_mode=1, retry=16, timeout=60, delay=1, quiet=0):
-        '''
-        Receive a stream via the XMODEM protocol.
-
-            >>> stream = open('/etc/issue', 'wb')
-            >>> print(modem.recv(stream))
-            2342
-
-        Returns the number of bytes received on success or ``None`` in case of
-        failure.
-
-        :param stream: The stream object to write data to.
-        :type stream: stream (file, etc.)
-        :param crc_mode: XMODEM CRC mode
-        :type crc_mode: int
-        :param retry: The maximum number of times to try to resend a failed
-                      packet before failing.
-        :type retry: int
-        :param timeout: The number of seconds to wait for a response before
-                        timing out.
-        :type timeout: int
-        :param delay: The number of seconds to wait between resend attempts
-        :type delay: int
-        :param quiet: If ``True``, write transfer information to stderr.
-        :type quiet: bool
-
-        '''
-
-        # initiate protocol
-        error_count = 0
-        char = 0
-        cancel = 0
-        while True:
-            # first try CRC mode, if this fails,
-            # fall back to checksum mode
-            if error_count >= retry:
-                self.log.info('error_count reached %d, aborting.', retry)
-                self.abort(timeout=timeout)
-                return None
-            elif crc_mode and error_count < (retry // 2):
-                if not self.ser.write(CRC):
-                    self.log.debug('recv error: putc failed, '
-                                   'sleeping for %d', delay)
-                    time.sleep(delay)
-                    error_count += 1
-            else:
-                crc_mode = 0
-                if not self.ser.write(NAK):
-                    self.log.debug('recv error: putc failed, '
-                                   'sleeping for %d', delay)
-                    time.sleep(delay)
-                    error_count += 1
-
-            char = self.ser.read(1)
-            if char is None:
-                self.log.warn('recv error: read timeout in start sequence')
-                error_count += 1
-                continue
-            elif char == SOH:
-                self.log.debug('recv: SOH')
-                break
-            elif char == STX:
-                self.log.debug('recv: STX')
-                break
-            elif char == CAN or char == CAN2:
-                if cancel:
-                    self.log.info('Transmission canceled: received 2xCAN '
-                                  'at start-sequence')
-                    return None
-                else:
-                    self.log.debug('cancellation at start sequence.')
-                    cancel = 1
-            else:
-                error_count += 1
-
-        # read data
-        error_count = 0
-        income_size = 0
-        packet_size = 128
-        sequence = 1
-        cancel = 0
-        while True:
-            while True:
-                if char == SOH:
-                    if packet_size != 128:
-                        self.log.debug('recv: SOH, using 128b packet_size')
-                        packet_size = 128
-                    break
-                elif char == STX:
-                    if packet_size != 1024:
-                        self.log.debug('recv: SOH, using 1k packet_size')
-                        packet_size = 1024
-                    break
-                elif char == EOT:
-                    # We received an EOT, so send an ACK and return the
-                    # received data length.
-                    self.ser.write(ACK)
-                    self.log.info("Transmission complete, %d bytes",
-                                  income_size)
-                    return income_size
-                elif char == CAN or char == CAN2:
-                    # cancel at two consecutive cancels
-                    if cancel:
-                        self.log.info('Transmission canceled: received 2xCAN '
-                                      'at block %d', sequence)
-                        return None
-                    else:
-                        self.log.debug('cancellation at block %d', sequence)
-                        cancel = 1
-                else:
-                    err_msg = ('recv error: expected SOH, EOT; '
-                               'got {0!r}'.format(char))
-                    if not quiet:
-                        print(err_msg, file=sys.stderr)
-                    self.log.warn(err_msg)
-                    error_count += 1
-                    if error_count > retry:
-                        self.log.info('error_count reached %d, aborting.',
-                                      retry)
-                        self.abort()
-                        return None
-
-            # read sequence
-            error_count = 0
-            cancel = 0
-            self.log.debug('recv: data block %d', sequence)
-            seq1 = self.ser.read(1)
-            if seq1 is None:
-                self.log.warn('read failed to get first sequence byte')
-                seq2 = None
-            else:
-                seq1 = ord(seq1)
-                seq2 = self.ser.read(1)
-                if seq2 is None:
-                    self.log.warn('read failed to get second sequence byte')
-                else:
-                    # second byte is the same as first as 1's complement
-                    seq2 = 0xff - ord(seq2)
-
-            if not (seq1 == seq2 == sequence):
-                # consume data anyway ... even though we will discard it,
-                # it is not the sequence we expected!
-                self.log.error('expected sequence %d, '
-                               'got (seq1=%r, seq2=%r), '
-                               'receiving next block, will NAK.',
-                               sequence, seq1, seq2)
-                self.ser.read(packet_size + 1 + crc_mode)
-            else:
-                # sequence is ok, read packet
-                # packet_size + checksum
-                data = self.ser.read(packet_size + 1 + crc_mode)
-                valid, data = self._verify_recv_checksum(crc_mode, data)
-
-                # valid data, append chunk
-                if valid:
-                    income_size += len(data)
-                    stream.write(data)
-                    self.ser.write(ACK)
-                    sequence = (sequence + 1) % 0x100
-                    # get next start-of-header byte
-                    char = self.ser.read(1)
-                    continue
-
-            # something went wrong, request retransmission
-            self.log.warn('recv error: purge, requesting retransmission (NAK)')
-            while True:
-                # When the receiver wishes to <nak>, it should call a "PURGE"
-                # subroutine, to wait for the line to clear. Recall the sender
-                # tosses any characters in its UART buffer immediately upon
-                # completing sending a block, to ensure no glitches were mis-
-                # interpreted.  The most common technique is for "PURGE" to
-                # call the character receive subroutine, specifying a 1-second
-                # timeout, and looping back to PURGE until a timeout occurs.
-                # The <nak> is then sent, ensuring the other end will see it.
-                data = self.ser.read(1)
-                if data is None:
-                    break
-            self.ser.write(NAK)
-            # get next start-of-header byte
-            char = self.ser.read(1)
-            continue
-
-    def _verify_recv_checksum(self, crc_mode, data):
-        if crc_mode:
-            _checksum = bytearray(data[-2:])
-            their_sum = (_checksum[0] << 8) + _checksum[1]
-            data = data[:-2]
-
-            our_sum = self.calc_crc(data)
-            valid = bool(their_sum == our_sum)
-            if not valid:
-                self.log.warn('recv error: checksum fail '
-                              '(theirs=%04x, ours=%04x), ',
-                              their_sum, our_sum)
-        else:
-            _checksum = bytearray([data[-1]])
-            their_sum = _checksum[0]
-            data = data[:-1]
-
-            our_sum = self.calc_checksum(data)
-            valid = their_sum == our_sum
-            if not valid:
-                self.log.warn('recv error: checksum fail '
-                              '(theirs=%02x, ours=%02x)',
-                              their_sum, our_sum)
-        return valid, data
-
-    def calc_checksum(self, data, checksum=0):
-        '''
-        Calculate the checksum for a given block of data, can also be used to
-        update a checksum.
-
-            >>> csum = modem.calc_checksum('hello')
-            >>> csum = modem.calc_checksum('world', csum)
-            >>> hex(csum)
-            '0x3c'
-
-        '''
-        if platform.python_version_tuple() >= ('3', '0', '0'):
-            return (sum(data) + checksum) % 256
-        else:
-            return (sum(map(ord, data)) + checksum) % 256
 
     def calc_crc(self, data, crc=0):
         '''
@@ -675,6 +373,4 @@ class XMODEM(object):
         return crc & 0xffff
 
 
-XMODEM1k = partial(XMODEM, mode='xmodem1k')
-YMODEM = partial(XMODEM, mode='ymodem')
 
