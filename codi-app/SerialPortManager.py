@@ -88,6 +88,8 @@ def uploadReadFromSerial():
     print('[230400]Listening...')
     while isRunning:
         uploadResponse = socket.read()
+        if socket.in_waiting > 0:
+            uploadResponse += socket.read(socket.in_waiting)
         print('[230400]Response', uploadResponse)
 
 
