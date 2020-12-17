@@ -135,7 +135,6 @@ def send_file(file):
     SerialPortManager.sendCommand(writeString("1"))
     time.sleep(1)
 
-    logging.basicConfig(filename='ymodem.log', level=logging.DEBUG)
     ser = SerialPortManager.getSocket()
 
     modem = YMODEM(ser)
@@ -150,8 +149,14 @@ def send_file(file):
 
 
 parser = optparse.OptionParser(usage='%prog [filename]')
+parser.add_option("-d", "--debug",
+                  action="store_true", dest="debug",
+                  help="output debug logging to ymodem.log")
 
 options, args = parser.parse_args()
+
+if options.debug:
+    logging.basicConfig(filename='/tmp/codiUpdate.log', level=logging.DEBUG)
 
 lock = "/tmp/.codi.lock"
 killed = lock_file.check_and_kill(lock)

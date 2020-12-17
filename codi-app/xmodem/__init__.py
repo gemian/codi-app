@@ -217,7 +217,7 @@ class YMODEM(object):
                         self.log.debug('cancellation at start sequence.')
                         cancel = 1
                 else:
-                    self.log.error('send error: expected NAK, CRC, or CAN; '
+                    self.log.info('send error: expected NAK, CRC, or CAN; '
                                    'got %r', char)
 
             error_count += 1
@@ -279,7 +279,7 @@ class YMODEM(object):
                         self.ser.write(header + data + checksum)
                     else:
                         rubbish = self.ser.read(self.ser.in_waiting-1)
-                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
                     continue
                 if char == ACK or char == ACK2 or char == NAK:
                     success_count += 1
@@ -288,19 +288,19 @@ class YMODEM(object):
                     error_count = 0
                     if char == NAK:
                         rubbish = self.ser.read(1024)
-                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
                         rubbish = self.ser.read(1024)
-                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
                         rubbish = self.ser.read(1024)
-                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
                         rubbish = self.ser.read(1024)
-                        self.log.error('got NAK rubbish %r for block %d', rubbish, sequence)
+                        self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
                     break
                 if char == ABT:
                     self.log.debug('got abort')
                     return False
 
-                self.log.error('send error: expected CRC|ACK; got %r for block %d',
+                self.log.info('send error: expected CRC|ACK; got %r for block %d',
                                char, sequence)
                 error_count += 1
                 if callable(callback):
@@ -308,7 +308,7 @@ class YMODEM(object):
                 if error_count > retry:
                     # excessive amounts of retransmissions requested,
                     # abort transfer
-                    self.log.error('send error: Unexpected received %d times, '
+                    self.log.info('send error: Unexpected received %d times, '
                                    'aborting.', error_count)
                     self.abort(timeout=timeout)
                     return False
@@ -329,7 +329,7 @@ class YMODEM(object):
             if char == ACK:
                 break
             else:
-                self.log.error('send error: expected ACK; got %r', char)
+                self.log.info('send error: expected ACK; got %r', char)
                 error_count += 1
                 if error_count > retry:
                     self.log.warning('EOT was not ACKd, aborting transfer')
