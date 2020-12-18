@@ -10,6 +10,9 @@ from xmodem import YMODEM
 import codi_st32_generated_functions as st32Cmd
 import SerialPortManager
 import lock_file
+import CodiFunctions as cf
+
+log = logging.getLogger('codiUpdate')
 
 ospi_url = None
 resources_url = None
@@ -51,7 +54,6 @@ def check_new_fota_versions_available():
     sendMessage(st32Cmd.CMD_MTK_GET_CODI_FLASH_VERSION)
     sendMessage(st32Cmd.CMD_MTK_GET_PROTOCOL_VERSION)
     # download available versions - http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt
-    base_url = None
     newest_version = None
     for line in urllib.request.urlopen("http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt"):
         firmware_line = line.decode('utf-8')
@@ -70,45 +72,44 @@ def check_new_fota_versions_available():
                 resources_checksum = firmware_parts[7]
 
     time.sleep(2)  # Wait for CODI to reply
-    print("CODI versions:", st32Cmd.get_codi_version(), st32Cmd.get_resources_version(), st32Cmd.get_protocol_major(),
-          st32Cmd.get_protocol_minor())
-    print("NewestVersion:", newest_version)
-    # print("BaseUrl:",base_url)
-    # print("OspiUrl:",base_url+'/'+ospi_url)
-    # print("ResourcesUrl:",base_url+'/'+resources_url)
+    print("Current CODI versions:", cf.get_codi_version(), cf.get_resources_version(), cf.get_protocol_major(),
+          cf.get_protocol_minor())
+    print("Newest Server Version:", newest_version)
 
-    if st32Cmd.get_codi_version() is not None and st32Cmd.get_resources_version() is not None:
-        print(LooseVersion(newest_version) > LooseVersion(st32Cmd.get_codi_version().replace('V', '')),
-              LooseVersion(newest_version) > LooseVersion(st32Cmd.get_resources_version().replace('R', '')))
-        return LooseVersion(newest_version) > LooseVersion(st32Cmd.get_codi_version().replace('V', '')) or \
-               LooseVersion(newest_version) > LooseVersion(st32Cmd.get_resources_version().replace('R', ''))
+    if cf.get_codi_version() is not None and cf.get_resources_version() is not None:
+        print(LooseVersion(newest_version) > LooseVersion(cf.get_codi_version().replace('V', '')),
+              LooseVersion(newest_version) > LooseVersion(cf.get_resources_version().replace('R', '')))
+        return LooseVersion(newest_version) > LooseVersion(cf.get_codi_version().replace('V', '')) or \
+               LooseVersion(newest_version) > LooseVersion(cf.get_resources_version().replace('R', ''))
     else:
         return False
 
 
 def stm32_hardware_reset():
-    print("Reset STM32 1")
+    print("Resetting CoDi")
     with open('/proc/AEON_RESET_STM32', 'w') as f:
         f.write("1")
     time.sleep(1)
-    print("Reset STM32 0")
     with open('/proc/AEON_RESET_STM32', 'w') as f:
         f.write("0")
     time.sleep(4)
+    print("Reset complete")
 
 
-def stm32_into_download_mode(prepare="0"):
-    print("STM32_DL_FW", prepare)
+def stm32_into_download_mode(prepare):
+    print("Into download mode, prepare:", prepare)
     with open('/proc/AEON_STM32_DL_FW', 'w') as f:
-        f.write(prepare)
-
+        if prepare:
+            f.write("1")
+        else:
+            f.write("0")
 
 ser = None
 
 def print_progress_bar (iteration, error_count, total):
     errors = "E:" + str(error_count)
     length = int(os.popen('stty size', 'r').read().split()[1]) - len(errors) - 11
-    percent = ("{0:.1f}").format(100 * (iteration / float(total)))
+    percent = "{0:.1f}".format(100 * (iteration / float(total)))
     filled_length = int(length * iteration // total)
     bar = '█' * filled_length + '-' * (length - filled_length)
     print(f'\r |{bar}| {percent}% {errors}', end = "\r")
@@ -124,28 +125,32 @@ def send_file(file):
     print("Switch to upload")
     SerialPortManager.switchToUploadMode()
     time.sleep(1)
-    stm32_into_download_mode("1")
+    stm32_into_download_mode(True)
     time.sleep(4)
-    print("Sending 140 '0d oa' session 5 - requesting reset")
+    log.info("Sending 140 '0d oa' session 5 - requesting reset")
     sendMessage(140, [writeUint8(0x0d), writeUint8(0x0a)], '00 00 00 05')
     time.sleep(2)
     stm32_hardware_reset()
-    stm32_into_download_mode()
+    stm32_into_download_mode(False)
     print("Send Command 1")
     SerialPortManager.sendCommand(writeString("1"))
     time.sleep(1)
 
-    ser = SerialPortManager.getSocket()
+    ser = SerialPortManager.get_socket()
 
     modem = YMODEM(ser)
 
     print("Sending", file)
+    print("Expect a few errors at 0% as the CoDi is erasing the flash, ~3 fw, ~15 res")
+    file_sent = False
     try:
-        print("\r\nSend completed:", modem.send(file, callback=callback))
+        file_sent = modem.send(file, callback=callback)
+        print("\r\nSend completed:", file_sent)
     except Exception as e:
-        print("Exception", e)
+        log.error(e)
     SerialPortManager.switchToCmdMode()
     print("Finished")
+    return file_sent
 
 
 parser = optparse.OptionParser(usage='%prog [filename]')
@@ -163,22 +168,31 @@ killed = lock_file.check_and_kill(lock)
 lock_file.lock(lock)
 
 SerialPortManager.init()
+fileSent = False
 if len(args) > 0:
-    send_file(args[0])
-
-if check_new_fota_versions_available():
-    print("")
-    print("Newer version available")
-    print("Please flash resources first")
-    print("R:",resources_url)
-    print("M:",ospi_url)
-
-elif st32Cmd.get_codi_version() is not None:
-    print("Your all up to date - no new firmware")
+    fileSent = send_file(args[0])
 else:
-    print("CODI Error getting existing version")
+    print("")
+    versionAvailable = check_new_fota_versions_available()
+    if versionAvailable:
+        print("Newer version available, please download and flash as desired, suggest resources first")
+        print("R:",resources_url)
+        print("F:",ospi_url)
+    else:
+        if cf.get_codi_version() is None:
+            print("CODI Error getting existing version, a reset might help or a reflash may be needed")
+            if ospi_url is not None:
+                print("Server versions available")
+                print("R:",resources_url)
+                print("F:",ospi_url)
+        else:
+            print("Your all up to date - no new firmware")
+            print("Note firmware version numbers are early in the binary so a partial flash may still show as up to date")
+
 SerialPortManager.stop()
 
-#if killed:
+if killed:
+    print("")
+    print("Please logout & in again to restart the CoDi server once you've done all needed flashing")
 #    print("Restarting codi server")
 #    os.system("/usr/lib/codi/codiServer.py & disown")

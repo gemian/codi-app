@@ -1,3 +1,4 @@
+import logging
 import DBusServer
 import CodiStatus
 import codi_mtk_generated_functions as mtkCmd
@@ -5,6 +6,8 @@ import CodiFunctions as cf
 import LEDManager
 import subprocess
 import Addressbook
+
+log = logging.getLogger('codi')
 
 def init():
     global CallInfo
@@ -14,14 +17,14 @@ def init():
 
 
 def volumeButtonPressed(sender, name, value):
-    print('<=', sender, name, value)
+    log.info('<= %r %r %r', sender, name, value)
 
     if name == 'decrease_volume':
         if CallInfo.state == 'incoming':
             try:
                 CallInfo.currentCall.Answer()
             except Exception as e:
-                print(e)
+                log.error(e)
         else:
             mtkCmd.KeyPressInfo(25, value, 0)
     if name == 'increase_volume':
@@ -29,12 +32,12 @@ def volumeButtonPressed(sender, name, value):
             try:
                 CallInfo.currentCall.Hangup()
             except Exception as e:
-                print(e)
+                log.error(e)
         else:
             mtkCmd.KeyPressInfo(24, value, 0)
 
 def propertiesChanged(sender, property, data):
-    print('<=', sender, property, data)
+    log.info('<= %r %r %r', sender, property, data)
     if 'LidIsClosed' in property.keys():
         value = property['LidIsClosed']
         DeviceInfo.lidClosed = value
@@ -56,11 +59,11 @@ def propertiesChanged(sender, property, data):
         LEDManager.ledsCharging(DBusServer.power.State == 1)
 
 def networkPropertiesChanged(properties):
-    print('<=', properties)
+    log.info('<= %r', properties)
     mtkCmd.WiFiStatusInfo(int(DBusServer.network.WirelessEnabled), 100)
 
 def propertyChanged(property, value):
-    print('<=', property, value)
+    log.info('<=', property, value)
     # TODO: This does NOT work for some reason!
     if property == 'Muted':
         mtkCmd.CallMuteStatusInfo(1)
@@ -79,7 +82,7 @@ def propertyChanged(property, value):
 
 
 def callStatusChanged(sender, data=None):
-    print('<=', sender, data)
+    log.info('<=', sender, data)
     if data:
         CallInfo.currentCall = DBusServer.bus.get('org.ofono', sender)
         CallInfo.currentCall.onPropertyChanged = propertyChanged

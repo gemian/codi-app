@@ -1,26 +1,6 @@
 import struct
+import logging
 import CodiFunctions as cf
-
-codi_version = None
-resources_version = None
-majorVer = None
-minVer = None
-
-def get_codi_version():
-    global codi_version
-    return codi_version
-
-def get_resources_version():
-    global resources_version
-    return resources_version
-
-def get_protocol_major():
-    global majorVer
-    return majorVer
-
-def get_protocol_minor():
-    global minVer
-    return minVer
 
 def readUint8(p):
     return struct.unpack(">B", p[:1])[0], p[1:]
@@ -45,7 +25,7 @@ def readString(p):
     if len(np) >= s:
         return np[:s], np[s:]
     else:
-        print('Error reading string', s, '>', len(np))
+        log.error('Error reading string %r%r%r', s, '>', len(np))
         return '', p
 
 def readUTF8String(p):
@@ -188,382 +168,375 @@ CMD_SYNC_SYS_SLEEP_STATUS = 143
 CMD_SYNC_RIGHT_USB_OTG_STATUS = 144
 CMD_ST_ENTRY_DEEP_SLEEP_STATUS = 145
 
-def readMessage(msg):
-    global codi_version
-    global resources_version
-    global protocol_major
-    global protocol_minor
+log = logging.getLogger('codi')
 
+def readMessage(msg):
     cmdId, msg = readUint32(msg)
-    # print("Got cmdId", cmdId)
+    # log.info("Got cmdId %r", cmdId)
     sessionId, msg = readUint32(msg)
-    # print("Got sessionId", sessionId)
+    # log.info("Got sessionId %r", sessionId)
     handled = False
     if cmdId == CMD_ST32_INFO_CODI_FLASH_VERSION:
         handled = True
-        print("<- CoDiFlashVersionInfo")
+        log.info("<- CoDiFlashVersionInfo")
         try:
             version, msg = readString(msg)
-            print("version =", version)
-            parts = version.split(b':')
-            if parts[0] == b'CODI' and len(parts[3]) > 0:
-                codi_version = parts[1].decode("utf-8")
-                resources_version = parts[2].decode("utf-8")
+            log.info("version = %r", version)
             cf.CoDiFlashVersionInfo(version)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_PROTOCOL_VERSION:
         handled = True
-        print("<- ProtocolVersionInfo")
+        log.info("<- ProtocolVersionInfo")
         try:
             majorVer, msg = readUint8(msg)
             minVer, msg = readUint8(msg)
-            print("majorVer =", majorVer)
-            print("minVer =", minVer)
+            log.info("majorVer = %r", majorVer)
+            log.info("minVer = %r", minVer)
             cf.ProtocolVersionInfo(majorVer, minVer)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_BINARY:
         handled = True
-        print("<- SetBinary")
+        log.info("<- SetBinary")
         try:
             data, msg = readBlob(msg)
-            print("data =", data)
+            log.info("data = %r", data)
             cf.SetBinary(data)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_S8:
         handled = True
-        print("<- SetSigned8")
+        log.info("<- SetSigned8")
         try:
             num, msg = readInt8(msg)
-            print("num =", num)
+            log.info("num = %r", num)
             cf.SetSigned8(num)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_RESTART:
         handled = True
-        print("<- Restart")
+        log.info("<- Restart")
         try:
             restartmode, msg = readUint32(msg)
-            print("restartmode =", restartmode)
+            log.info("restartmode = %r", restartmode)
             cf.Restart(restartmode)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_DATETIME:
         handled = True
-        print("<- GetDateTime")
+        log.info("<- GetDateTime")
         try:
             cf.GetDateTime()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_LOCATION_STATUS:
         handled = True
-        print("<- SetLocationStatus")
+        log.info("<- SetLocationStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetLocationStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_LOCATION_STATUS:
         handled = True
-        print("<- GetLocationStatus")
+        log.info("<- GetLocationStatus")
         try:
             cf.GetLocationStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_TORCH_STATUS:
         handled = True
-        print("<- SetTorchStatus")
+        log.info("<- SetTorchStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetTorchStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_TORCH_STATUS:
         handled = True
-        print("<- GetTorchStatus")
+        log.info("<- GetTorchStatus")
         try:
             cf.GetTorchStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_COVER_STATUS:
         handled = True
-        print("<- GetCoverStatus")
+        log.info("<- GetCoverStatus")
         try:
             cf.GetCoverStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_WIFI_STATUS:
         handled = True
-        print("<- SetWiFiStatus")
+        log.info("<- SetWiFiStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetWiFiStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_WIFI_STATUS:
         handled = True
-        print("<- GetWiFiStatus")
+        log.info("<- GetWiFiStatus")
         try:
             cf.GetWiFiStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_BT_STATUS:
         handled = True
-        print("<- SetBTStatus")
+        log.info("<- SetBTStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetBTStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_BT_STATUS:
         handled = True
-        print("<- GetBTStatus")
+        log.info("<- GetBTStatus")
         try:
             cf.GetBTStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_BATTERY_SAVER_STATUS:
         handled = True
-        print("<- SetBatterySaverStatus")
+        log.info("<- SetBatterySaverStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetBatterySaverStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_BATTERY_SAVER_STATUS:
         handled = True
-        print("<- GetBatterySaverStatus")
+        log.info("<- GetBatterySaverStatus")
         try:
             cf.GetBatterySaverStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_FLIGHT_MODE_STATUS:
         handled = True
-        print("<- SetFlightModeStatus")
+        log.info("<- SetFlightModeStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetFlightModeStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_FLIGHT_MODE_STATUS:
         handled = True
-        print("<- GetFlightModeStatus")
+        log.info("<- GetFlightModeStatus")
         try:
             cf.GetFlightModeStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_HOTSPOT_STATUS:
         handled = True
-        print("<- SetHotspotStatus")
+        log.info("<- SetHotspotStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetHotspotStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_HOTSPOT_STATUS:
         handled = True
-        print("<- GetHotspotStatus")
+        log.info("<- GetHotspotStatus")
         try:
             cf.GetHotspotStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_MOBILE_DATA_STATUS:
         handled = True
-        print("<- SetMobileDataStatus")
+        log.info("<- SetMobileDataStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetMobileDataStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_MOBILE_DATA_STATUS:
         handled = True
-        print("<- GetMobileDataStatus")
+        log.info("<- GetMobileDataStatus")
         try:
             cf.GetMobileDataStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_DND_STATUS:
         handled = True
-        print("<- SetDoNotDisturbStatus")
+        log.info("<- SetDoNotDisturbStatus")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status = %r", status)
             cf.SetDoNotDisturbStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_DND_STATUS:
         handled = True
-        print("<- GetDoNotDisturbStatus")
+        log.info("<- GetDoNotDisturbStatus")
         try:
             cf.GetDoNotDisturbStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_VOLUME_LEVEL:
         handled = True
-        print("<- SetVolumeLevel")
+        log.info("<- SetVolumeLevel")
         try:
             status, msg = readUint16(msg)
             stream, msg = readUint16(msg)
-            print("status =", status)
-            print("stream =", stream)
+            log.info("status = %r", status)
+            log.info("stream = %r", stream)
             cf.SetVolumeLevel(status, stream)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_VOLUME_LEVEL:
         handled = True
-        print("<- GetVolumeLevel")
+        log.info("<- GetVolumeLevel")
         try:
             stream, msg = readUint16(msg)
-            print("stream =", stream)
+            log.info("stream = %r", stream)
             cf.GetVolumeLevel(stream)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_BATTERY_LEVEL:
         handled = True
-        print("<- GetBatteryLevel")
+        log.info("<- GetBatteryLevel")
         try:
             cf.GetBatteryLevel()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_CODI_STATUS:
         handled = True
-        print("<- CoDiStatusInfo")
+        log.info("<- CoDiStatusInfo")
         try:
             mode, msg = readUint32(msg)
             screen, msg = readUint32(msg)
             data1, msg = readUint32(msg)
-            print("mode =", mode)
-            print("screen =", screen)
-            print("data1 =", data1)
+            log.info("mode =", mode)
+            log.info("screen =", screen)
+            log.info("data1 =", data1)
             cf.CoDiStatusInfo(mode, screen, data1)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_LOCK:
         handled = True
-        print("<- SetLock")
+        log.info("<- SetLock")
         try:
             status, msg = readUint16(msg)
-            print("status =", status)
+            log.info("status =", status)
             cf.SetLock(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_LOCK_STATUS:
         handled = True
-        print("<- GetLockStatus")
+        log.info("<- GetLockStatus")
         try:
             cf.GetLockStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_DISMISS_CALL_SMS:
         handled = True
-        print("<- DismissCallSMS")
+        log.info("<- DismissCallSMS")
         try:
             sim, msg = readUint32(msg)
             line, msg = readUint32(msg)
             msisdn, msg = readString(msg)
             text, msg = readUTF8String(msg)
-            print("sim =", sim)
-            print("line =", line)
-            print("msisdn =", msisdn)
-            print("text =", text)
+            log.info("sim =", sim)
+            log.info("line =", line)
+            log.info("msisdn =", msisdn)
+            log.info("text =", text)
             cf.DismissCallSMS(sim, line, msisdn, text)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_UNLOCK:
         handled = True
-        print("<- ActionUnlock")
+        log.info("<- ActionUnlock")
         try:
             method, msg = readUint32(msg)
             strdata, msg = readString(msg)
-            print("method =", method)
-            print("strdata =", strdata)
+            log.info("method =", method)
+            log.info("strdata =", strdata)
             cf.ActionUnlock(method, strdata)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_ST_CHARGING:
         handled = True
-        print("<- STChargingInfo")
+        log.info("<- STChargingInfo")
         try:
             status, msg = readUint32(msg)
             measurement, msg = readUint32(msg)
-            print("status =", status)
-            print("measurement =", measurement)
+            log.info("status =", status)
+            log.info("measurement =", measurement)
             cf.STChargingInfo(status, measurement)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_PLAY_DTMF:
         handled = True
-        print("<- PlayDTMF")
+        log.info("<- PlayDTMF")
         try:
             ascii_num, msg = readUint8(msg)
-            print("ascii_num =", ascii_num)
+            log.info("ascii_num =", ascii_num)
             cf.PlayDTMF(ascii_num)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SEND_DTMF:
         handled = True
-        print("<- SendDTMF")
+        log.info("<- SendDTMF")
         try:
             sim, msg = readUint32(msg)
             line, msg = readUint32(msg)
             asciinum, msg = readUint8(msg)
             playit, msg = readUint8(msg)
-            print("sim =", sim)
-            print("line =", line)
-            print("asciinum =", asciinum)
-            print("playit =", playit)
+            log.info("sim =", sim)
+            log.info("line =", line)
+            log.info("asciinum =", asciinum)
+            log.info("playit =", playit)
             cf.SendDTMF(sim, line, asciinum, playit)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_CALL:
         handled = True
-        print("<- ActionCall")
+        log.info("<- ActionCall")
         try:
             action, msg = readUint32(msg)
             sim, msg = readUint32(msg)
@@ -572,406 +545,406 @@ def readMessage(msg):
             msisdn, msg = readString(msg)
             contact, msg = readUTF8String(msg)
             contact_id, msg = readString(msg)
-            print("action =", action)
-            print("sim =", sim)
-            print("line =", line)
-            print("numtype =", numtype)
-            print("msisdn =", msisdn)
-            print("contact =", contact)
-            print("contact_id =", contact_id)
+            log.info("action =", action)
+            log.info("sim =", sim)
+            log.info("line =", line)
+            log.info("numtype =", numtype)
+            log.info("msisdn =", msisdn)
+            log.info("contact =", contact)
+            log.info("contact_id =", contact_id)
             cf.ActionCall(action, sim, line, numtype, msisdn, contact, contact_id)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SEND_TELE_CODE:
         handled = True
-        print("<- SendTeleCode")
+        log.info("<- SendTeleCode")
         try:
             sim, msg = readUint32(msg)
             line, msg = readUint32(msg)
             telecode, msg = readString(msg)
-            print("sim =", sim)
-            print("line =", line)
-            print("telecode =", telecode)
+            log.info("sim =", sim)
+            log.info("line =", line)
+            log.info("telecode =", telecode)
             cf.SendTeleCode(sim, line, telecode)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_CALL_MUTE_STATUS:
         handled = True
-        print("<- SetCallMuteStatus")
+        log.info("<- SetCallMuteStatus")
         try:
             status, msg = readUint32(msg)
-            print("status =", status)
+            log.info("status =", status)
             cf.SetCallMuteStatus(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CALL_MUTE_STATUS:
         handled = True
-        print("<- GetCallMuteStatus")
+        log.info("<- GetCallMuteStatus")
         try:
             cf.GetCallMuteStatus()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_CALL_OUTPUT:
         handled = True
-        print("<- SetCallOutput")
+        log.info("<- SetCallOutput")
         try:
             status, msg = readUint32(msg)
-            print("status =", status)
+            log.info("status =", status)
             cf.SetCallOutput(status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CALL_OUTPUT:
         handled = True
-        print("<- GetCallOutput")
+        log.info("<- GetCallOutput")
         try:
             cf.GetCallOutput()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CALL_OUTPUT_OPTIONS:
         handled = True
-        print("<- GetCallOutputOptions")
+        log.info("<- GetCallOutputOptions")
         try:
             cf.GetCallOutputOptions()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_CAMERA:
         handled = True
-        print("<- ActionCamera")
+        log.info("<- ActionCamera")
         try:
             action, msg = readUint32(msg)
-            print("action =", action)
+            log.info("action =", action)
             cf.ActionCamera(action)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CAMERA_FRAME:
         handled = True
-        print("<- GetCameraFrame")
+        log.info("<- GetCameraFrame")
         try:
             cf.GetCameraFrame()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_CAMERA_SETTINGS:
         handled = True
-        print("<- SetCameraSettings")
+        log.info("<- SetCameraSettings")
         try:
             parameter, msg = readUint32(msg)
             value, msg = readUint32(msg)
-            print("parameter =", parameter)
-            print("value =", value)
+            log.info("parameter =", parameter)
+            log.info("value =", value)
             cf.SetCameraSettings(parameter, value)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_CAMERA_CAPTURE_IMAGE:
         handled = True
-        print("<- CameraCaptureImage")
+        log.info("<- CameraCaptureImage")
         try:
             cf.CameraCaptureImage()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_VIDEO:
         handled = True
-        print("<- ActionVideo")
+        log.info("<- ActionVideo")
         try:
             action, msg = readUint32(msg)
-            print("action =", action)
+            log.info("action =", action)
             cf.ActionVideo(action)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_VIDEO_FRAME:
         handled = True
-        print("<- GetVideoFrame")
+        log.info("<- GetVideoFrame")
         try:
             cf.GetVideoFrame()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_VIDEO_SETTINGS:
         handled = True
-        print("<- SetVideoSettings")
+        log.info("<- SetVideoSettings")
         try:
             parameter, msg = readUint32(msg)
             value, msg = readUint32(msg)
-            print("parameter =", parameter)
-            print("value =", value)
+            log.info("parameter =", parameter)
+            log.info("value =", value)
             cf.SetVideoSettings(parameter, value)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_VIDEO_CAPTURE_IMAGE:
         handled = True
-        print("<- VideoCaptureImage")
+        log.info("<- VideoCaptureImage")
         try:
             cf.VideoCaptureImage()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_COVER_LIGHT_SENSOR:
         handled = True
-        print("<- GetCoverLightSensor")
+        log.info("<- GetCoverLightSensor")
         try:
             cf.GetCoverLightSensor()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_CURRENT_LANGUAGE:
         handled = True
-        print("<- CurrentLanguageInfo")
+        log.info("<- CurrentLanguageInfo")
         try:
             langid, msg = readString(msg)
             hasallresources, msg = readUint32(msg)
             data1, msg = readUint32(msg)
-            print("langid =", langid)
-            print("hasallresources =", hasallresources)
-            print("data1 =", data1)
+            log.info("langid =", langid)
+            log.info("hasallresources =", hasallresources)
+            log.info("data1 =", data1)
             cf.CurrentLanguageInfo(langid, hasallresources, data1)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_MEDIA_RESOURCE:
         handled = True
-        print("<- MediaResourceInfo")
+        log.info("<- MediaResourceInfo")
         try:
             typestr, msg = readString(msg)
             resname, msg = readString(msg)
             length, msg = readUint32(msg)
             status, msg = readUint32(msg)
-            print("typestr =", typestr)
-            print("resname =", resname)
-            print("length =", length)
-            print("status =", status)
+            log.info("typestr =", typestr)
+            log.info("resname =", resname)
+            log.info("length =", length)
+            log.info("status =", status)
             cf.MediaResourceInfo(typestr, resname, length, status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_MEDIA_ACTIVITY:
         handled = True
-        print("<- MediaActivityInfo")
+        log.info("<- MediaActivityInfo")
         try:
             typestr, msg = readString(msg)
             resname, msg = readString(msg)
             status, msg = readUint32(msg)
-            print("typestr =", typestr)
-            print("resname =", resname)
-            print("status =", status)
+            log.info("typestr =", typestr)
+            log.info("resname =", resname)
+            log.info("status =", status)
             cf.MediaActivityInfo(typestr, resname, status)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_INFO_ALERT:
         handled = True
-        print("<- AlertInfo")
+        log.info("<- AlertInfo")
         try:
             status, msg = readUint32(msg)
             response, msg = readUint32(msg)
             responsestr, msg = readUTF8String(msg)
-            print("status =", status)
-            print("response =", response)
-            print("responsestr =", responsestr)
+            log.info("status =", status)
+            log.info("response =", response)
+            log.info("responsestr =", responsestr)
             cf.AlertInfo(status, response, responsestr)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_ORIENTATION:
         handled = True
-        print("<- GetOrientation")
+        log.info("<- GetOrientation")
         try:
             cf.GetOrientation()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CALL_HISTORY:
         handled = True
-        print("<- GetCallHistory")
+        log.info("<- GetCallHistory")
         try:
             index, msg = readUint32(msg)
-            print("index =", index)
+            log.info("index =", index)
             cf.GetCallHistory(index)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CONTACTS:
         handled = True
-        print("<- GetContacts")
+        log.info("<- GetContacts")
         try:
             index, msg = readUint32(msg)
-            print("index =", index)
+            log.info("index =", index)
             cf.GetContacts(index)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_PLAYER:
         handled = True
-        print("<- ActionPlayer")
+        log.info("<- ActionPlayer")
         try:
             action, msg = readUint32(msg)
-            print("action =", action)
+            log.info("action =", action)
             cf.ActionPlayer(action)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_NOTIFICATION:
         handled = True
-        print("<- ActionNotification")
+        log.info("<- ActionNotification")
         try:
             notid, msg = readUint32(msg)
             action, msg = readUint32(msg)
             pos, msg = readUint32(msg)
-            print("notid =", notid)
-            print("action =", action)
-            print("pos =", pos)
+            log.info("notid =", notid)
+            log.info("action =", action)
+            log.info("pos =", pos)
             cf.ActionNotification(notid, action, pos)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_LEDISON_PATTERN:
         handled = True
-        print("<- GetLEDisonPattern")
+        log.info("<- GetLEDisonPattern")
         try:
             contactid, msg = readString(msg)
             contactname, msg = readUTF8String(msg)
             msisdn, msg = readString(msg)
-            print("contactid =", contactid)
-            print("contactname =", contactname)
-            print("msisdn =", msisdn)
+            log.info("contactid =", contactid)
+            log.info("contactname =", contactname)
+            log.info("msisdn =", msisdn)
             cf.GetLEDisonPattern(contactid, contactname, msisdn)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_LEDISON_MODE:
         handled = True
-        print("<- GetLEDisonMode")
+        log.info("<- GetLEDisonMode")
         try:
             cf.GetLEDisonMode()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_CONTACT_ICON:
         handled = True
-        print("<- GetContactIcon")
+        log.info("<- GetContactIcon")
         try:
             contactid, msg = readString(msg)
             contactname, msg = readUTF8String(msg)
             msisdn, msg = readString(msg)
-            print("contactid =", contactid)
-            print("contactname =", contactname)
-            print("msisdn =", msisdn)
+            log.info("contactid =", contactid)
+            log.info("contactname =", contactname)
+            log.info("msisdn =", msisdn)
             cf.GetContactIcon(contactid, contactname, msisdn)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_MODEM_SIGNAL_INFO:
         handled = True
-        print("<- GetModemSignalInfo")
+        log.info("<- GetModemSignalInfo")
         try:
             cf.GetModemSignalInfo()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_DATE_TIME_FORMAT:
         handled = True
-        print("<- GetDateTimeFormat")
+        log.info("<- GetDateTimeFormat")
         try:
             cf.GetDateTimeFormat()
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_GET_ALBUM_ART:
         handled = True
-        print("<- GetAlbumArt")
+        log.info("<- GetAlbumArt")
         try:
             mediasessionformat, msg = readBlob(msg)
-            print("mediasessionformat =", mediasessionformat)
+            log.info("mediasessionformat =", mediasessionformat)
             cf.GetAlbumArt(mediasessionformat)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_ACTION_VOICE_RECODER:
         handled = True
-        print("<- ActionVoiceRecorder")
+        log.info("<- ActionVoiceRecorder")
         try:
             action, msg = readUint32(msg)
-            print("action =", action)
+            log.info("action =", action)
             cf.ActionVoiceRecorder(action)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_SET_VOICE_RECORDER_SETTINGS:
         handled = True
-        print("<- SetVoiceRecorderSettings")
+        log.info("<- SetVoiceRecorderSettings")
         try:
             parameter, msg = readUint32(msg)
             value, msg = readUint32(msg)
-            print("parameter =", parameter)
-            print("value =", value)
+            log.info("parameter =", parameter)
+            log.info("value =", value)
             cf.SetVoiceRecorderSettings(parameter, value)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_ST32_DATA_CHANGE_ALERT:
         handled = True
-        print("<- STDataChangeAlert")
+        log.info("<- STDataChangeAlert")
         try:
             type, msg = readUint32(msg)
             data1, msg = readUint32(msg)
-            print("type =", type)
-            print("data1 =", data1)
+            log.info("type =", type)
+            log.info("data1 =", data1)
             cf.STDataChangeAlert(type, data1)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == CMD_SYNC_SYS_SLEEP_STATUS:
         handled = True
-        print("<- CoDiOFF")
+        log.info("<- CoDiOFF")
         try:
             par1, msg = readUint8(msg)
-            print("par1 =", par1)
+            log.info("par1 =", par1)
             par2, msg = readUint8(msg)
-            print("par2 =", par2)
+            log.info("par2 =", par2)
             cf.CoDiOFF(par1, par2)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == 147:
         handled = True
-        print("<- MouseInfo")
+        log.info("<- MouseInfo")
         try:
             mode, msg = readUint8(msg)
-            print("mode =", mode)
+            log.info("mode =", mode)
             x_coord, msg = readInt16(msg)
-            print("x_coord =", x_coord)
+            log.info("x_coord =", x_coord)
             y_coord, msg = readInt16(msg)
-            print("y_coord =", y_coord)
+            log.info("y_coord =", y_coord)
             cf.MouseInfo(mode, x_coord, y_coord)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if cmdId == 148:
         handled = True
-        print("<- MouseInfo2")
+        log.info("<- MouseInfo2")
         try:
             pressState, msg = readUint8(msg)
-            print("pressState =", pressState)
+            log.info("pressState =", pressState)
             previousState, msg = readUint8(msg)
-            print("previousSatate =", previousState)
+            log.info("previousSatate =", previousState)
             x_coord, msg = readUint16(msg)
-            print("x_coord =", x_coord)
+            log.info("x_coord =", x_coord)
             y_coord, msg = readUint16(msg)
-            print("y_coord =", y_coord)
+            log.info("y_coord =", y_coord)
             cf.MouseInfo2(pressState, previousState, x_coord, y_coord)
         except Exception as e:
-            print(e)
+            log.error(e)
 
     if not handled:
-        print("<- Unrecognised command", cmdId)
+        log.info("<- Unrecognised command", cmdId)

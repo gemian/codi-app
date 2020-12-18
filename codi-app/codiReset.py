@@ -13,14 +13,14 @@ def stm32_hardware_reset():
     time.sleep(4)
 
 
-def stm32_into_download_mode(prepare="0"):
-    print("STM32_DL_FW", prepare)
+def stm32_out_of_download_mode():
+    print("Out of download mode")
     with open('/proc/AEON_STM32_DL_FW', 'w') as f:
-        f.write(prepare)
+        f.write("0")
 
 lock = "/tmp/.codi.lock"
 killed = lock_file.check_and_kill(lock)
 lock_file.lock(lock)
 
 stm32_hardware_reset()
-stm32_into_download_mode()
+stm32_out_of_download_mode()
