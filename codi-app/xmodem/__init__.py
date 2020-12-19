@@ -63,9 +63,7 @@ __copyright__ = ['Copyright (c) 2010 Wijnand Modderman',
 __license__ = 'MIT'
 __version__ = '0.4.5'
 
-import platform
 import logging
-import time
 import sys
 import os
 
@@ -159,7 +157,7 @@ class YMODEM(object):
         for _ in range(count):
             self.ser.write(CAN)
 
-    def send(self, filename, retry=20, timeout=60, quiet=False, callback=None):
+    def send(self, filename, slow_mode=False, retry=20, timeout=60, callback=None):
         '''
         Send a stream via the YMODEM protocol.
 
@@ -169,16 +167,17 @@ class YMODEM(object):
         Returns ``True`` upon successful transmission or ``False`` in case of
         failure.
 
-        :param stream: The stream object to send data from.
-        :type stream: stream (file, etc.)
+        :param filename: The filename to send data from.
+        :type filename: string
+        :param slow_mode: If True, send only imediately after being asked, this can
+                          help with repeatedly failing flashing.
+        :type slow_mode: bool
         :param retry: The maximum number of times to try to resend a failed
                       packet before failing.
         :type retry: int
         :param timeout: The number of seconds to wait for a response before
                         timing out.
         :type timeout: int
-        :param quiet: If True, write transfer information to stderr.
-        :type quiet: bool
         :param callback: Reference to a callback function that has the
                          following signature.  This is useful for
                          getting status updates while a ymodem
@@ -193,25 +192,19 @@ class YMODEM(object):
 
         self.log.debug('Begin start sequence, packet_size=%d', packet_size)
         error_count = 0
-        crc_mode = 0
         cancel = 0
         while True:
             char = self.ser.read(1)
             if char:
-                if char == NAK:
-                    self.log.debug('standard checksum requested (NAK).')
-                    crc_mode = 0
-                    break
-                elif char == CRC:
+                if char == CRC:
                     self.log.debug('16-bit CRC requested (CRC).')
-                    crc_mode = 1
                     break
                 elif char == CAN or char == CAN2:
-                    if not quiet:
-                        print('received CAN', file=sys.stderr)
+                    self.log.debug('received CAN')
                     if cancel:
                         self.log.info('Transmission canceled: received 2xCAN '
                                       'at start-sequence')
+                        print("Remote side requested cancel, suggest trying again later")
                         return False
                     else:
                         self.log.debug('cancellation at start sequence.')
@@ -227,65 +220,104 @@ class YMODEM(object):
                 self.abort(timeout=timeout)
                 return False
 
-        # send data
         error_count = 0
+        nak_count = 0
         success_count = 0
         total_packets = 0
-        total = 0
-        header_sent = False
         sequence = 0
-        stream = None
-        while True:
-            # build packet
-            if not header_sent:
-                # send packet sequence 0 containing:
-                #  Filename Length [Modification-Date [Mode [Serial-Number]]]
-                stream = open(filename, 'rb')
-                stat = os.stat(filename)
-                data = os.path.basename(filename).encode() + NUL + str(stat.st_size).encode()
-                self.log.debug('ymodem sending : "%s" len:%d', filename, stat.st_size)
 
-                if len(data) <= 128:
-                    header_size = 128
-                else:
-                    header_size = 1024
+        # send packet sequence 0 containing:
+        #  Filename Length [Modification-Date [Mode [Serial-Number]]]
+        stream = open(filename, 'rb')
+        stat = os.stat(filename)
+        data = os.path.basename(filename).encode() + NUL + str(stat.st_size).encode()
+        self.log.debug('ymodem sending : "%s" len:%d', filename, stat.st_size)
 
-                header = self._make_send_header(header_size, sequence)
-                data = data.ljust(header_size, NUL)
-                checksum = self._make_send_checksum(crc_mode, data)
-                header_sent = True
-                total = (stat.st_size / packet_size) + 1
-            else:
-                # normal data packet
-                data = stream.read(packet_size)
-                if not data:
-                    # end of stream
-                    self.log.debug('send: at EOF')
-                    break
-                total_packets += 1
+        if len(data) <= 128:
+            header_size = 128
+        else:
+            header_size = 1024
 
-                header = self._make_send_header(packet_size, sequence)
-                data = data.ljust(packet_size, self.pad)
-                checksum = self._make_send_checksum(crc_mode, data)
+        header = self._make_send_header(header_size, sequence)
+        data = data.ljust(header_size, NUL)
+        checksum = self._make_send_checksum(1, data)
+        total = (stat.st_size / packet_size) + 1
+        header_sent = False
 
-            # emit packet & get ACK
+        while not header_sent:
+            self.log.debug('header send: block %d, pks: %d', sequence, header_size)
             self.ser.write(header + data + checksum)
-
             while True:
                 char = self.ser.read(1)
                 if char == CRC or char == CRC2 or char == CRC3:
                     if self.ser.in_waiting == 0:
-                        self.log.debug('re-send: block %d, pks: %d', sequence, packet_size)
+                        self.log.debug('header re-send: block %d, pks: %d', sequence, packet_size)
                         self.ser.write(header + data + checksum)
-                    else:
+                    elif self.ser.in_waiting > 1:
                         rubbish = self.ser.read(self.ser.in_waiting-1)
-                        self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
+                        self.log.info('header got rubbish %r for block %d', rubbish, sequence)
                     continue
-                if char == ACK or char == ACK2 or char == NAK:
+                if char == ACK or char == ACK2:
                     success_count += 1
                     if callable(callback):
                         callback(total_packets, success_count, error_count, total)
                     error_count = 0
+                    header_sent = True
+                    break
+
+                self.log.info('send error: expected CRC|ACK; got %r for block %d', char, sequence)
+                error_count += 1
+                if callable(callback):
+                    callback(total_packets, success_count, error_count, total)
+                if error_count > retry:
+                    # excessive amounts of retransmissions requested,
+                    # abort transfer
+                    self.log.info('header send error: Unexpected received %d times, '
+                    'aborting.', error_count)
+                    self.abort(timeout=timeout)
+                    return False
+
+            # keep track of sequence
+            sequence = (sequence + 1) % 0x100
+
+        #send data
+        while True:
+            # build normal data packet
+            data = stream.read(packet_size)
+            if not data:
+                # end of stream
+                self.log.debug('send: at EOF')
+                break
+            total_packets += 1
+
+            header = self._make_send_header(packet_size, sequence)
+            data = data.ljust(packet_size, self.pad)
+            checksum = self._make_send_checksum(1, data)
+
+            # emit packet & get ACK
+            if not slow_mode:
+                self.log.debug('send: block %d, pks: %d', sequence, packet_size)
+                self.ser.write(header + data + checksum)
+
+            while True:
+                char = self.ser.read(1)
+                if char == CRC or char == CRC2 or char == CRC3:
+                    if slow_mode:
+                        self.log.debug('send: block %d, pks: %d', sequence, packet_size)
+                        self.ser.write(header + data + checksum)
+                    elif self.ser.in_waiting == 0:
+                        self.log.debug('re-send: block %d, pks: %d', sequence, packet_size)
+                        self.ser.write(header + data + checksum)
+                    elif self.ser.in_waiting > 1:
+                        rubbish = self.ser.read(self.ser.in_waiting-1)
+                        self.log.info('got rubbish %r for block %d', rubbish, sequence)
+                    continue
+                if char == ACK or char == ACK2 or (char == NAK and not slow_mode):
+                    success_count += 1
+                    if callable(callback):
+                        callback(total_packets, success_count, error_count, total)
+                    error_count = 0
+                    nak_count = 0
                     if char == NAK:
                         rubbish = self.ser.read(1024)
                         self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
@@ -296,8 +328,19 @@ class YMODEM(object):
                         rubbish = self.ser.read(1024)
                         self.log.info('got NAK rubbish %r for block %d', rubbish, sequence)
                     break
+                if slow_mode and char == NAK:
+                    nak_count += 1
+                    error_count += 1
+                    self.log.error('send error: expected CRC|ACK; got NAK(%d) for block %d', nak_count, sequence)
+                    if nak_count > 4:
+                        nak_count = 0
+                        self.log.debug('try sending next block: %d', sequence)
+                        break
                 if char == ABT:
                     self.log.debug('got abort')
+                    return False
+                if char == CAN or char == CAN2:
+                    self.log.debug('got cancel')
                     return False
 
                 self.log.info('send error: expected CRC|ACK; got %r for block %d',

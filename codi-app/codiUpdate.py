@@ -77,8 +77,6 @@ def check_new_fota_versions_available():
     print("Newest Server Version:", newest_version)
 
     if cf.get_codi_version() is not None and cf.get_resources_version() is not None:
-        print(LooseVersion(newest_version) > LooseVersion(cf.get_codi_version().replace('V', '')),
-              LooseVersion(newest_version) > LooseVersion(cf.get_resources_version().replace('R', '')))
         return LooseVersion(newest_version) > LooseVersion(cf.get_codi_version().replace('V', '')) or \
                LooseVersion(newest_version) > LooseVersion(cf.get_resources_version().replace('R', ''))
     else:
@@ -118,7 +116,7 @@ def callback(total_packets, success_count, error_count, total):
     print_progress_bar(total_packets, error_count, total)
 
 
-def send_file(file):
+def send_file(file, slow_mode):
     global ser
 
     time.sleep(1)  # Wait for listening thread to get started
@@ -134,17 +132,17 @@ def send_file(file):
     stm32_into_download_mode(False)
     print("Send Command 1")
     SerialPortManager.sendCommand(writeString("1"))
-    time.sleep(1)
+    time.sleep(2)
 
     ser = SerialPortManager.get_socket()
 
     modem = YMODEM(ser)
 
-    print("Sending", file)
+    print("Sending:", file)
     print("Expect a few errors at 0% as the CoDi is erasing the flash, ~3 fw, ~15 res")
     file_sent = False
     try:
-        file_sent = modem.send(file, callback=callback)
+        file_sent = modem.send(file, slow_mode, callback=callback)
         print("\r\nSend completed:", file_sent)
     except Exception as e:
         log.error(e)
@@ -157,6 +155,9 @@ parser = optparse.OptionParser(usage='%prog [filename]')
 parser.add_option("-d", "--debug",
                   action="store_true", dest="debug",
                   help="output debug logging to ymodem.log")
+parser.add_option("-s", "--slow",
+                  action="store_true", dest="slow_mode",
+                  help="use slow mode for serial communications, this can help with stuck flashing")
 
 options, args = parser.parse_args()
 
@@ -170,7 +171,7 @@ lock_file.lock(lock)
 SerialPortManager.init()
 fileSent = False
 if len(args) > 0:
-    fileSent = send_file(args[0])
+    fileSent = send_file(args[0], options.slow_mode)
 else:
     print("")
     versionAvailable = check_new_fota_versions_available()
