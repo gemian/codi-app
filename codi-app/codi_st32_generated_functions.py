@@ -443,9 +443,9 @@ def readMessage(msg):
             mode, msg = readUint32(msg)
             screen, msg = readUint32(msg)
             data1, msg = readUint32(msg)
-            log.info("mode =", mode)
-            log.info("screen =", screen)
-            log.info("data1 =", data1)
+            log.info("mode = %r", mode)
+            log.info("screen = %r", screen)
+            log.info("data1 = %r", data1)
             cf.CoDiStatusInfo(mode, screen, data1)
         except Exception as e:
             log.error(e)
@@ -455,7 +455,7 @@ def readMessage(msg):
         log.info("<- SetLock")
         try:
             status, msg = readUint16(msg)
-            log.info("status =", status)
+            log.info("status = %r", status)
             cf.SetLock(status)
         except Exception as e:
             log.error(e)
@@ -476,10 +476,10 @@ def readMessage(msg):
             line, msg = readUint32(msg)
             msisdn, msg = readString(msg)
             text, msg = readUTF8String(msg)
-            log.info("sim =", sim)
-            log.info("line =", line)
-            log.info("msisdn =", msisdn)
-            log.info("text =", text)
+            log.info("sim = %r", sim)
+            log.info("line = %r", line)
+            log.info("msisdn = %r", msisdn)
+            log.info("text = %r", text)
             cf.DismissCallSMS(sim, line, msisdn, text)
         except Exception as e:
             log.error(e)
@@ -490,8 +490,8 @@ def readMessage(msg):
         try:
             method, msg = readUint32(msg)
             strdata, msg = readString(msg)
-            log.info("method =", method)
-            log.info("strdata =", strdata)
+            log.info("method = %r", method)
+            log.info("strdata = %r", strdata)
             cf.ActionUnlock(method, strdata)
         except Exception as e:
             log.error(e)
@@ -502,8 +502,8 @@ def readMessage(msg):
         try:
             status, msg = readUint32(msg)
             measurement, msg = readUint32(msg)
-            log.info("status =", status)
-            log.info("measurement =", measurement)
+            log.info("status = %r", status)
+            log.info("measurement = %r", measurement)
             cf.STChargingInfo(status, measurement)
         except Exception as e:
             log.error(e)
@@ -513,7 +513,7 @@ def readMessage(msg):
         log.info("<- PlayDTMF")
         try:
             ascii_num, msg = readUint8(msg)
-            log.info("ascii_num =", ascii_num)
+            log.info("ascii_num = %r", ascii_num)
             cf.PlayDTMF(ascii_num)
         except Exception as e:
             log.error(e)
@@ -526,10 +526,10 @@ def readMessage(msg):
             line, msg = readUint32(msg)
             asciinum, msg = readUint8(msg)
             playit, msg = readUint8(msg)
-            log.info("sim =", sim)
-            log.info("line =", line)
-            log.info("asciinum =", asciinum)
-            log.info("playit =", playit)
+            log.info("sim = %r", sim)
+            log.info("line = %r", line)
+            log.info("asciinum = %r", asciinum)
+            log.info("playit = %r", playit)
             cf.SendDTMF(sim, line, asciinum, playit)
         except Exception as e:
             log.error(e)
@@ -545,13 +545,13 @@ def readMessage(msg):
             msisdn, msg = readString(msg)
             contact, msg = readUTF8String(msg)
             contact_id, msg = readString(msg)
-            log.info("action =", action)
-            log.info("sim =", sim)
-            log.info("line =", line)
-            log.info("numtype =", numtype)
-            log.info("msisdn =", msisdn)
-            log.info("contact =", contact)
-            log.info("contact_id =", contact_id)
+            log.info("action = %r", action)
+            log.info("sim = %r", sim)
+            log.info("line = %r", line)
+            log.info("numtype = %r", numtype)
+            log.info("msisdn = %r", msisdn)
+            log.info("contact = %r", contact)
+            log.info("contact_id = %r", contact_id)
             cf.ActionCall(action, sim, line, numtype, msisdn, contact, contact_id)
         except Exception as e:
             log.error(e)
@@ -563,9 +563,9 @@ def readMessage(msg):
             sim, msg = readUint32(msg)
             line, msg = readUint32(msg)
             telecode, msg = readString(msg)
-            log.info("sim =", sim)
-            log.info("line =", line)
-            log.info("telecode =", telecode)
+            log.info("sim = %r", sim)
+            log.info("line = %r", line)
+            log.info("telecode = %r", telecode)
             cf.SendTeleCode(sim, line, telecode)
         except Exception as e:
             log.error(e)
@@ -575,7 +575,7 @@ def readMessage(msg):
         log.info("<- SetCallMuteStatus")
         try:
             status, msg = readUint32(msg)
-            log.info("status =", status)
+            log.info("status = %r", status)
             cf.SetCallMuteStatus(status)
         except Exception as e:
             log.error(e)
@@ -593,7 +593,7 @@ def readMessage(msg):
         log.info("<- SetCallOutput")
         try:
             status, msg = readUint32(msg)
-            log.info("status =", status)
+            log.info("status = %r", status)
             cf.SetCallOutput(status)
         except Exception as e:
             log.error(e)
@@ -619,7 +619,7 @@ def readMessage(msg):
         log.info("<- ActionCamera")
         try:
             action, msg = readUint32(msg)
-            log.info("action =", action)
+            log.info("action = %r", action)
             cf.ActionCamera(action)
         except Exception as e:
             log.error(e)
@@ -638,8 +638,8 @@ def readMessage(msg):
         try:
             parameter, msg = readUint32(msg)
             value, msg = readUint32(msg)
-            log.info("parameter =", parameter)
-            log.info("value =", value)
+            log.info("parameter = %r", parameter)
+            log.info("value = %r", value)
             cf.SetCameraSettings(parameter, value)
         except Exception as e:
             log.error(e)
@@ -657,7 +657,7 @@ def readMessage(msg):
         log.info("<- ActionVideo")
         try:
             action, msg = readUint32(msg)
-            log.info("action =", action)
+            log.info("action = %r", action)
             cf.ActionVideo(action)
         except Exception as e:
             log.error(e)
@@ -676,8 +676,8 @@ def readMessage(msg):
         try:
             parameter, msg = readUint32(msg)
             value, msg = readUint32(msg)
-            log.info("parameter =", parameter)
-            log.info("value =", value)
+            log.info("parameter = %r", parameter)
+            log.info("value = %r", value)
             cf.SetVideoSettings(parameter, value)
         except Exception as e:
             log.error(e)
@@ -705,9 +705,9 @@ def readMessage(msg):
             langid, msg = readString(msg)
             hasallresources, msg = readUint32(msg)
             data1, msg = readUint32(msg)
-            log.info("langid =", langid)
-            log.info("hasallresources =", hasallresources)
-            log.info("data1 =", data1)
+            log.info("langid = %r", langid)
+            log.info("hasallresources = %r", hasallresources)
+            log.info("data1 = %r", data1)
             cf.CurrentLanguageInfo(langid, hasallresources, data1)
         except Exception as e:
             log.error(e)
@@ -720,10 +720,10 @@ def readMessage(msg):
             resname, msg = readString(msg)
             length, msg = readUint32(msg)
             status, msg = readUint32(msg)
-            log.info("typestr =", typestr)
-            log.info("resname =", resname)
-            log.info("length =", length)
-            log.info("status =", status)
+            log.info("typestr = %r", typestr)
+            log.info("resname = %r", resname)
+            log.info("length = %r", length)
+            log.info("status = %r", status)
             cf.MediaResourceInfo(typestr, resname, length, status)
         except Exception as e:
             log.error(e)
@@ -735,9 +735,9 @@ def readMessage(msg):
             typestr, msg = readString(msg)
             resname, msg = readString(msg)
             status, msg = readUint32(msg)
-            log.info("typestr =", typestr)
-            log.info("resname =", resname)
-            log.info("status =", status)
+            log.info("typestr = %r", typestr)
+            log.info("resname = %r", resname)
+            log.info("status = %r", status)
             cf.MediaActivityInfo(typestr, resname, status)
         except Exception as e:
             log.error(e)
@@ -749,9 +749,9 @@ def readMessage(msg):
             status, msg = readUint32(msg)
             response, msg = readUint32(msg)
             responsestr, msg = readUTF8String(msg)
-            log.info("status =", status)
-            log.info("response =", response)
-            log.info("responsestr =", responsestr)
+            log.info("status = %r", status)
+            log.info("response = %r", response)
+            log.info("responsestr = %r", responsestr)
             cf.AlertInfo(status, response, responsestr)
         except Exception as e:
             log.error(e)
@@ -769,7 +769,7 @@ def readMessage(msg):
         log.info("<- GetCallHistory")
         try:
             index, msg = readUint32(msg)
-            log.info("index =", index)
+            log.info("index = %r", index)
             cf.GetCallHistory(index)
         except Exception as e:
             log.error(e)
@@ -779,7 +779,7 @@ def readMessage(msg):
         log.info("<- GetContacts")
         try:
             index, msg = readUint32(msg)
-            log.info("index =", index)
+            log.info("index = %r", index)
             cf.GetContacts(index)
         except Exception as e:
             log.error(e)
@@ -789,7 +789,7 @@ def readMessage(msg):
         log.info("<- ActionPlayer")
         try:
             action, msg = readUint32(msg)
-            log.info("action =", action)
+            log.info("action = %r", action)
             cf.ActionPlayer(action)
         except Exception as e:
             log.error(e)
@@ -801,9 +801,9 @@ def readMessage(msg):
             notid, msg = readUint32(msg)
             action, msg = readUint32(msg)
             pos, msg = readUint32(msg)
-            log.info("notid =", notid)
-            log.info("action =", action)
-            log.info("pos =", pos)
+            log.info("notid = %r", notid)
+            log.info("action = %r", action)
+            log.info("pos = %r", pos)
             cf.ActionNotification(notid, action, pos)
         except Exception as e:
             log.error(e)
@@ -815,9 +815,9 @@ def readMessage(msg):
             contactid, msg = readString(msg)
             contactname, msg = readUTF8String(msg)
             msisdn, msg = readString(msg)
-            log.info("contactid =", contactid)
-            log.info("contactname =", contactname)
-            log.info("msisdn =", msisdn)
+            log.info("contactid = %r", contactid)
+            log.info("contactname = %r", contactname)
+            log.info("msisdn = %r", msisdn)
             cf.GetLEDisonPattern(contactid, contactname, msisdn)
         except Exception as e:
             log.error(e)
@@ -837,9 +837,9 @@ def readMessage(msg):
             contactid, msg = readString(msg)
             contactname, msg = readUTF8String(msg)
             msisdn, msg = readString(msg)
-            log.info("contactid =", contactid)
-            log.info("contactname =", contactname)
-            log.info("msisdn =", msisdn)
+            log.info("contactid = %r", contactid)
+            log.info("contactname = %r", contactname)
+            log.info("msisdn = %r", msisdn)
             cf.GetContactIcon(contactid, contactname, msisdn)
         except Exception as e:
             log.error(e)
@@ -875,7 +875,7 @@ def readMessage(msg):
         log.info("<- ActionVoiceRecorder")
         try:
             action, msg = readUint32(msg)
-            log.info("action =", action)
+            log.info("action = %r", action)
             cf.ActionVoiceRecorder(action)
         except Exception as e:
             log.error(e)
@@ -886,8 +886,8 @@ def readMessage(msg):
         try:
             parameter, msg = readUint32(msg)
             value, msg = readUint32(msg)
-            log.info("parameter =", parameter)
-            log.info("value =", value)
+            log.info("parameter = %r", parameter)
+            log.info("value = %r", value)
             cf.SetVoiceRecorderSettings(parameter, value)
         except Exception as e:
             log.error(e)
@@ -898,8 +898,8 @@ def readMessage(msg):
         try:
             type, msg = readUint32(msg)
             data1, msg = readUint32(msg)
-            log.info("type =", type)
-            log.info("data1 =", data1)
+            log.info("type = %r", type)
+            log.info("data1 = %r", data1)
             cf.STDataChangeAlert(type, data1)
         except Exception as e:
             log.error(e)
@@ -909,9 +909,9 @@ def readMessage(msg):
         log.info("<- CoDiOFF")
         try:
             par1, msg = readUint8(msg)
-            log.info("par1 =", par1)
+            log.info("par1 = %r", par1)
             par2, msg = readUint8(msg)
-            log.info("par2 =", par2)
+            log.info("par2 = %r", par2)
             cf.CoDiOFF(par1, par2)
         except Exception as e:
             log.error(e)
@@ -921,11 +921,11 @@ def readMessage(msg):
         log.info("<- MouseInfo")
         try:
             mode, msg = readUint8(msg)
-            log.info("mode =", mode)
+            log.info("mode = %r", mode)
             x_coord, msg = readInt16(msg)
-            log.info("x_coord =", x_coord)
+            log.info("x_coord = %r", x_coord)
             y_coord, msg = readInt16(msg)
-            log.info("y_coord =", y_coord)
+            log.info("y_coord = %r", y_coord)
             cf.MouseInfo(mode, x_coord, y_coord)
         except Exception as e:
             log.error(e)
@@ -935,16 +935,16 @@ def readMessage(msg):
         log.info("<- MouseInfo2")
         try:
             pressState, msg = readUint8(msg)
-            log.info("pressState =", pressState)
+            log.info("pressState = %r", pressState)
             previousState, msg = readUint8(msg)
-            log.info("previousSatate =", previousState)
+            log.info("previousSatate = %r", previousState)
             x_coord, msg = readUint16(msg)
-            log.info("x_coord =", x_coord)
+            log.info("x_coord = %r", x_coord)
             y_coord, msg = readUint16(msg)
-            log.info("y_coord =", y_coord)
+            log.info("y_coord = %r", y_coord)
             cf.MouseInfo2(pressState, previousState, x_coord, y_coord)
         except Exception as e:
             log.error(e)
 
     if not handled:
-        log.info("<- Unrecognised command", cmdId)
+        log.info("<- Unrecognised command %r", cmdId)

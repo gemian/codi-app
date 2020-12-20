@@ -33,6 +33,9 @@ lock = "/tmp/.codi.lock"
 lock_file.check_and_kill(lock)
 lock_file.lock(lock)
 
+# To turn on console logging uncomment the following line
+# logging.basicConfig(level=logging.DEBUG)
+
 CodiStatus.init()
 
 def initCodi():
