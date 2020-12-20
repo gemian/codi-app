@@ -250,11 +250,12 @@ class YMODEM(object):
             while True:
                 char = self.ser.read(1)
                 if char == CRC or char == CRC2 or char == CRC3:
-                    if self.ser.in_waiting == 0:
+                    in_waiting = self.ser.in_waiting
+                    if in_waiting == 0:
                         self.log.debug('header re-send: block %d, pks: %d', sequence, packet_size)
                         self.ser.write(header + data + checksum)
-                    elif self.ser.in_waiting > 1:
-                        rubbish = self.ser.read(self.ser.in_waiting-1)
+                    elif in_waiting > 1:
+                        rubbish = self.ser.read(in_waiting-1)
                         self.log.info('header got rubbish %r for block %d', rubbish, sequence)
                     continue
                 if char == ACK or char == ACK2:
@@ -302,14 +303,15 @@ class YMODEM(object):
             while True:
                 char = self.ser.read(1)
                 if char == CRC or char == CRC2 or char == CRC3:
+                    in_waiting = self.ser.in_waiting
                     if slow_mode:
                         self.log.debug('send: block %d, pks: %d', sequence, packet_size)
                         self.ser.write(header + data + checksum)
-                    elif self.ser.in_waiting == 0:
+                    elif in_waiting == 0:
                         self.log.debug('re-send: block %d, pks: %d', sequence, packet_size)
                         self.ser.write(header + data + checksum)
-                    elif self.ser.in_waiting > 1:
-                        rubbish = self.ser.read(self.ser.in_waiting-1)
+                    elif in_waiting > 1:
+                        rubbish = self.ser.read(in_waiting-1)
                         self.log.info('got rubbish %r for block %d', rubbish, sequence)
                     continue
                 if char == ACK or char == ACK2 or (char == NAK and not slow_mode):
