@@ -55,21 +55,24 @@ def check_new_fota_versions_available():
     sendMessage(st32Cmd.CMD_MTK_GET_PROTOCOL_VERSION)
     # download available versions - http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt
     newest_version = None
-    for line in urllib.request.urlopen("http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt"):
-        firmware_line = line.decode('utf-8')
-        firmware_parts = firmware_line.split(':')
-        if len(firmware_parts) >= 3 and firmware_parts[0] == 'L':
-            base_url = firmware_parts[1] + ':' + firmware_parts[2].strip()
-        if len(firmware_parts) >= 8 and firmware_parts[0] == 'F':
-            version = firmware_parts[1].replace(',', '.').replace('V', '')
-            if newest_version == None or LooseVersion(version) > LooseVersion(newest_version):
-                newest_version = version
-                ospi_url = base_url+'/'+firmware_parts[2]
-                ospi_size = firmware_parts[3]
-                ospi_checksum = firmware_parts[4]
-                resources_url = base_url+'/'+firmware_parts[5]
-                resources_size = firmware_parts[6]
-                resources_checksum = firmware_parts[7]
+    try:
+        for line in urllib.request.urlopen("http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt"):
+            firmware_line = line.decode('utf-8')
+            firmware_parts = firmware_line.split(':')
+            if len(firmware_parts) >= 3 and firmware_parts[0] == 'L':
+                base_url = firmware_parts[1] + ':' + firmware_parts[2].strip()
+            if len(firmware_parts) >= 8 and firmware_parts[0] == 'F':
+                version = firmware_parts[1].replace(',', '.').replace('V', '')
+                if newest_version == None or LooseVersion(version) > LooseVersion(newest_version):
+                    newest_version = version
+                    ospi_url = base_url+'/'+firmware_parts[2]
+                    ospi_size = firmware_parts[3]
+                    ospi_checksum = firmware_parts[4]
+                    resources_url = base_url+'/'+firmware_parts[5]
+                    resources_size = firmware_parts[6]
+                    resources_checksum = firmware_parts[7]
+    except Exception as e:
+        log.error(e)
 
     time.sleep(2)  # Wait for CODI to reply
     print("Current CODI versions:", cf.get_codi_version(), cf.get_resources_version(), cf.get_protocol_major(),
