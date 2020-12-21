@@ -28,7 +28,7 @@ console none
 
 script
   sleep 4
-  exec su -c "/home/phablet/codi-app/codi-app/codiServer.py" phablet
+  exec su -c "/usr/lib/codi/codiServer.py" phablet
 end script'
 
 echo "Installing init script..."
