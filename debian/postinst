@@ -1,29 +1,37 @@
 #!/bin/sh
 
-DESKTOP_FILE='[Desktop Entry]
-Comment=CoDi functionalitites
-Exec=/usr/lib/codi/codiServer.py
-GenericName=
-Icon=system-run
-MimeType=
-Name=
-Path=
-StartupNotify=true
-Terminal=false
-TerminalOptions=
-Type=Application
-X-DBUS-ServiceName=
-X-DBUS-StartupType=
-X-KDE-SubstituteUID=false
-X-KDE-Username='
+DEST="/etc/init/codi.conf"
 
-echo "Installing autostart script for existing users..."
-for username in `ls /home`;
-    do 
-    DEST="/home/$username/.config/autostart/codi.desktop"
-    echo "Installing codi.desktop in $DEST"
-    echo "$DESKTOP_FILE" > $DEST
-    chown $username.$username $DEST
-done
+INIT_SERVICE='# CoDi - Cover Display server
+#
+
+description	"CoverDisplay server"
+
+start on desktop-session-start
+
+#respawn
+#respawn limit 10 5
+umask 022
+
+# env SSH_SIGSTOP=1
+# expect stop
+
+# "sshd -D" leaks stderr and confuses things in conjunction with "console log"
+console none
+
+#pre-start script
+#    test -x /usr/sbin/sshd || { stop; exit 0; }
+#    test -e /etc/ssh/sshd_not_to_be_run && { stop; exit 0; }
+
+#    mkdir -p -m0755 /var/run/sshd
+#end script
+
+script
+  sleep 4
+  exec su -c "/home/phablet/codi-app/codi-app/codiServer.py" phablet
+end script'
+
+echo "Installing init script..."
+echo "$INIT_SERVICE" > $DEST
 
 exit 0
