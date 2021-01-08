@@ -8,6 +8,6 @@ Standards-Version: 3.9.5
 Package: codi-app
 Architecture: any
 Pre-Depends: dpkg (>= 1.16.1), python3.7, ${misc:Pre-Depends}
-Depends: python3, python3-pydbus, python3-serial, python3-evdev, xdotool
+Depends: python3, python3-pydbus, python3-serial, python3-evdev, python3-psutil, xdotool
 Description: Linux support for Cosmo Communicator CoDi
  This package provide limited Cover Display functionality for Linux
