@@ -53,10 +53,10 @@ def check_new_fota_versions_available():
     time.sleep(1)  # Wait for listening thread to get started
     sendMessage(st32Cmd.CMD_MTK_GET_CODI_FLASH_VERSION)
     sendMessage(st32Cmd.CMD_MTK_GET_PROTOCOL_VERSION)
-    # download available versions - http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt
+    # download available versions - https://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt
     newest_version = None
     try:
-        for line in urllib.request.urlopen("http://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt"):
+        for line in urllib.request.urlopen("https://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt"):
             firmware_line = line.decode('utf-8')
             firmware_parts = firmware_line.split(':')
             if len(firmware_parts) >= 3 and firmware_parts[0] == 'L':
