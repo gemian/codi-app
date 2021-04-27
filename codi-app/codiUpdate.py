@@ -54,6 +54,7 @@ def check_new_fota_versions_available():
     sendMessage(st32Cmd.CMD_MTK_GET_CODI_FLASH_VERSION)
     sendMessage(st32Cmd.CMD_MTK_GET_PROTOCOL_VERSION)
     # download available versions - https://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt
+    resource_version = {}
     newest_version = None
     try:
         for line in urllib.request.urlopen("https://fota.planetcom.co.uk/stm32flash/cosmo_stm32_firmware_versions.txt"):
@@ -61,6 +62,8 @@ def check_new_fota_versions_available():
             firmware_parts = firmware_line.split(':')
             if len(firmware_parts) >= 3 and firmware_parts[0] == 'L':
                 base_url = firmware_parts[1] + ':' + firmware_parts[2].strip()
+            if len(firmware_parts) >= 3 and firmware_parts[0] == 'R':
+                resource_version[firmware_parts[1].replace(',', '.').replace('V', '')] = firmware_parts[2].strip().replace(',', '.').replace('R', '')
             if len(firmware_parts) >= 8 and firmware_parts[0] == 'F':
                 version = firmware_parts[1].replace(',', '.').replace('V', '')
                 if newest_version == None or LooseVersion(version) > LooseVersion(newest_version):
@@ -78,10 +81,11 @@ def check_new_fota_versions_available():
     print("Current CODI versions:", cf.get_codi_version(), cf.get_resources_version(), cf.get_protocol_major(),
           cf.get_protocol_minor())
     print("Newest Server Version:", newest_version)
+    print("Matching Resource Server Version:", resource_version[newest_version])
 
     if cf.get_codi_version() is not None and cf.get_resources_version() is not None:
         return LooseVersion(newest_version) > LooseVersion(cf.get_codi_version().replace('V', '')) or \
-               LooseVersion(newest_version) > LooseVersion(cf.get_resources_version().replace('R', ''))
+               LooseVersion(resource_version[newest_version]) > LooseVersion(cf.get_resources_version().replace('R', ''))
     else:
         return False
 
